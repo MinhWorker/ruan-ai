@@ -11,7 +11,8 @@ Before editing code or docs:
 2. `docs/design/08-agent-execution-guide.md`
 3. `docs/operations/ci-cd.md`
 4. `docs/operations/release-management.md`
-5. The subsystem design document relevant to the task
+5. `docs/operations/github-workflow.md`
+6. The subsystem design document relevant to the task
 
 ## Deployment Guardrails
 
@@ -41,6 +42,8 @@ Use short-lived work branches:
 
 - `codex/*` for Codex work,
 - `agy/*` for Antigravity work,
+- `docs/*` for documentation-only work,
+- `ops/*` for operations work,
 - other task-specific branches only when requested.
 
 The intended branch model is:

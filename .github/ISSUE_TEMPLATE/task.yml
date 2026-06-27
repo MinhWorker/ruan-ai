@@ -1,0 +1,56 @@
+name: Task
+description: Track a bounded implementation, documentation, or operations task.
+title: "[Task]: "
+labels: ["type:task", "status:triage"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What must be completed?
+    validations:
+      required: true
+  - type: textarea
+    id: controlling_docs
+    attributes:
+      label: Controlling Docs
+      description: Which docs or ADRs control this task?
+      placeholder: |
+        - docs/design/00-index.md
+        - docs/operations/release-management.md
+    validations:
+      required: true
+  - type: textarea
+    id: expected_files
+    attributes:
+      label: Expected Files Or Modules
+      description: Which areas are expected to change?
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - 
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      placeholder: |
+        - 
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment Impact
+      options:
+        - No deployment impact
+        - Requires staging deploy
+        - Changes CI/CD or Cloud Run configuration
+        - Requires official release
+    validations:
+      required: true
