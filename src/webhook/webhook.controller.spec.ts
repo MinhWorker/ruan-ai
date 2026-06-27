@@ -7,6 +7,7 @@ import { InMemoryJobRepository } from '../job/in-memory-job.repository';
 import { ConfigService } from '../config/config.service';
 import { SignatureGuard } from './guards/signature.guard';
 import { HttpException } from '@nestjs/common';
+import { JobExecutionService } from '../execution/job-execution.service';
 
 describe('WebhookController', () => {
   let controller: WebhookController;
@@ -29,6 +30,12 @@ describe('WebhookController', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: JobExecutionService,
+          useValue: {
+            executeJob: jest.fn().mockResolvedValue({ mode: 'queued' }),
+          },
         },
       ],
     })

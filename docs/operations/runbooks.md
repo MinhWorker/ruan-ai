@@ -22,6 +22,7 @@
    $env:GITHUB_LIVE_LABEL="ruan-ai-test"
    npx jest test/live-integration.e2e-spec.ts
    ```
+   **Note:** Live write tests require explicit owner approval. Ensure you only run these on a disposable issue intended for testing.
 
 ## 2. Webhook Signature Failures
 **Scenario:** Webhook payloads from GitHub are being rejected with 401 Unauthorized.
@@ -60,7 +61,15 @@
 1. To resume a paused issue, a human must manually triage or instruct the AI to resume via a specific workflow command (future scope). For now, restart the webhook event.
 2. For stuck follow-ups, inspect the in-memory `followUpRecords` (or DB in future). Ensure the scheduler is running.
 
-## 7. App Authentication Failures (GitHub)
+## 7. Jobs Accepted but Not Executed
+**Scenario:** The webhook receives a 202 Accepted but the job doesn't seem to process or produce any effects.
+**Runbook:**
+1. Check the environment variable `JOB_EXECUTION_MODE`. If it is `queued` (or unset, as `queued` is the default), jobs are only created in the database but not executed.
+2. If intended for execution, update the deployment to include `JOB_EXECUTION_MODE=inline`.
+3. Check the logs for `job_execution_skipped` or `job_execution_failed` telemetry events. A failed job will record the exact reason in the `message`.
+4. Ensure the webhook didn't return `status: "ignored"`.
+
+## 8. App Authentication Failures (GitHub)
 **Scenario:** App fails to interact with GitHub APIs (401 Unauthorized or 403 Forbidden).
 **Runbook:**
 1. Check `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` validity.

@@ -3,9 +3,10 @@ import { WebhookController } from './webhook.controller';
 import { WebhookService } from './webhook.service';
 import { ConfigModule } from '../config/config.module';
 import { JobModule } from '../job/job.module';
+import { ExecutionModule } from '../execution/execution.module';
 
 @Module({
-  imports: [ConfigModule, JobModule],
+  imports: [ConfigModule, JobModule, ExecutionModule],
   controllers: [WebhookController],
   providers: [WebhookService],
 })

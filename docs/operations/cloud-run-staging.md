@@ -2,8 +2,8 @@
 
 ## Overview
 
-This document covers deploying **ruan-ai** to Google Cloud Run in staging mode (`PROVIDER_MODE=fake`).
-The staging deploy validates the container, networking, and webhook ingress without connecting to live GitHub/Gemini APIs.
+This document covers deploying **ruan-ai** to Google Cloud Run for the staging/pilot service.
+The service can run either fake providers (`PROVIDER_MODE=fake`) for infrastructure smoke tests or real providers (`PROVIDER_MODE=real`) for the GitHub App pilot.
 
 ## Prerequisites
 
@@ -50,6 +50,14 @@ gcloud secrets add-iam-policy-binding GITHUB_WEBHOOK_SECRET `
   --role="roles/secretmanager.secretAccessor"
 ```
 
+Real-provider pilot mode also requires:
+
+- `GITHUB_APP_ID`
+- `GITHUB_APP_PRIVATE_KEY`
+- `GOOGLE_AI_STUDIO_API_KEY`
+
+Grant the same runtime service account `roles/secretmanager.secretAccessor` for each secret.
+
 ## Local Docker Build Verification
 
 ```powershell
@@ -67,7 +75,7 @@ docker run --rm -p 8080:8080 `
 curl http://localhost:8080/health
 ```
 
-## Deploy to Cloud Run (Staging)
+## Deploy to Cloud Run (Fake Provider Smoke)
 
 ### One-command deploy (source-based)
 
@@ -89,12 +97,34 @@ gcloud run deploy ruan-ai-staging `
   --timeout=60
 ```
 
+## Update Cloud Run to Real Provider Pilot
+
+Use this after the GitHub App, private key, webhook secret, Google AI Studio key, and model IDs are configured.
+
+```powershell
+gcloud run services update ruan-ai-staging `
+  --project=gen-lang-client-0591588109 `
+  --region=us-central1 `
+  --set-env-vars=PROVIDER_MODE=real,GITHUB_LIVE_OWNER=MinhWorker,GITHUB_LIVE_REPO=ruan-ai,PRIMARY_MODEL_ID=gemma-4-31b-it,FALLBACK_MODEL_ID=gemma-4-26b-a4b-it,JOB_EXECUTION_MODE=inline `
+  --update-secrets=GITHUB_WEBHOOK_SECRET=GITHUB_WEBHOOK_SECRET:latest,GITHUB_APP_ID=GITHUB_APP_ID:latest,GITHUB_APP_PRIVATE_KEY=GITHUB_APP_PRIVATE_KEY:latest,GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest
+```
+
+Current pilot values:
+
+- service URL: `https://ruan-ai-staging-309117600688.us-central1.run.app`
+- webhook URL: `https://ruan-ai-staging-309117600688.us-central1.run.app/github/webhooks`
+- primary model: `gemma-4-31b-it`
+- fallback model: `gemma-4-26b-a4b-it`
+- job execution mode: `inline` (executes queued jobs immediately in the same request)
+
+Note: `JOB_EXECUTION_MODE=queued` (default) will accept and queue the webhook but will not execute it. Set to `inline` to execute workflows.
+
 ### What each flag does
 
 | Flag | Purpose |
 |---|---|
 | `--source=.` | Builds image via Cloud Build using the Dockerfile |
-| `--set-env-vars=PROVIDER_MODE=fake` | Staging uses fake providers (no live GitHub/Gemini calls) |
+| `--set-env-vars=PROVIDER_MODE=fake` | Fake-provider smoke mode uses no live GitHub/Gemini calls |
 | `--set-secrets=GITHUB_WEBHOOK_SECRET=GITHUB_WEBHOOK_SECRET:latest` | Mounts the Secret Manager secret as an env var |
 | `--allow-unauthenticated` | Allows GitHub webhook POST requests without IAM auth |
 | `--port=8080` | Tells Cloud Run which port the container listens on |
@@ -136,12 +166,16 @@ After deployment, configure the GitHub App/repo webhook:
 GitHub --webhook POST--> Cloud Run (ruan-ai-staging)
                               │
                               ├── PORT=8080 (injected by Cloud Run)
-                              ├── PROVIDER_MODE=fake
-                              └── GITHUB_WEBHOOK_SECRET (from Secret Manager)
+                              ├── PROVIDER_MODE=fake or real
+                              ├── GITHUB_WEBHOOK_SECRET (from Secret Manager)
+                              ├── GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY (real mode)
+                              └── GOOGLE_AI_STUDIO_API_KEY (real mode)
 ```
 
 - No database or queue is provisioned for staging.
 - `PROVIDER_MODE=fake` stubs all external API calls.
+- `PROVIDER_MODE=real` uses the configured GitHub App and Google AI Studio credentials.
+- `JOB_EXECUTION_MODE=inline` triggers end-to-end webhook processing synchronously for MVP features.
 - Cloud Run scales to zero when no requests are received.
 
 ## Troubleshooting

@@ -74,6 +74,47 @@ Build:
 - model availability validation,
 - operational runbooks.
 
+## Phase 2: Real Provider Integration
+
+Build:
+
+- real GitHub App read/write adapters,
+- real Google AI Studio adapter,
+- provider-mode config gating,
+- pagination and idempotent comment hardening,
+- credential-backed live integration tests gated by explicit env vars.
+
+Exit criteria:
+
+- fake mode remains the default local/test path,
+- real mode fails fast when required credentials are missing,
+- read-only live integration passes against the configured pilot repository,
+- live write tests remain opt-in only.
+
+## Phase 3: Production Job Execution
+
+Build:
+
+- a production execution path for queued webhook jobs,
+- explicit config for inline or worker execution mode,
+- bounded retries and failure marking,
+- telemetry/audit records for execution start, success, failure, and skipped jobs,
+- e2e tests proving a signed webhook can execute a workflow without manual `processJob` calls.
+
+Constraints:
+
+- Do not add a database in this phase unless explicitly approved.
+- Do not run unbounded long work in the webhook request path.
+- Keep Cloud Run scale-to-zero behavior viable for the current pilot.
+- Keep duplicate webhook delivery behavior idempotent.
+
+Exit criteria:
+
+- Cloud Run can receive a real GitHub webhook and produce the expected app-authored GitHub write for supported MVP workflows.
+- Existing fake-mode tests still pass.
+- Live read-only integration still passes.
+- Any live write pilot is explicitly owner-approved and uses a test issue.
+
 ## Deferred Backlog
 
 - PR review workflow.
@@ -84,4 +125,3 @@ Build:
 - Multi-repository portfolio planning.
 - Browser/IDE integration.
 - MCP tool hosting.
-

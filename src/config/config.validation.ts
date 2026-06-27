@@ -8,6 +8,7 @@ export interface EnvironmentConfig {
   GOOGLE_AI_STUDIO_API_KEY?: string;
   PRIMARY_MODEL_ID?: string;
   FALLBACK_MODEL_ID?: string;
+  JOB_EXECUTION_MODE: 'inline' | 'queued';
 }
 
 export function validateConfig(
@@ -33,6 +34,18 @@ export function validateConfig(
     );
   }
   const providerMode = providerModeInput === 'real' ? 'real' : 'fake';
+
+  const jobExecutionModeInput = env.JOB_EXECUTION_MODE ?? 'queued';
+  if (
+    jobExecutionModeInput !== 'inline' &&
+    jobExecutionModeInput !== 'queued'
+  ) {
+    errors.push(
+      `JOB_EXECUTION_MODE must be either "inline" or "queued", got: ${jobExecutionModeInput}`,
+    );
+  }
+  const jobExecutionMode =
+    jobExecutionModeInput === 'inline' ? 'inline' : 'queued';
 
   if (providerMode === 'real') {
     if (!env.GITHUB_APP_ID)
@@ -61,5 +74,6 @@ export function validateConfig(
     GOOGLE_AI_STUDIO_API_KEY: env.GOOGLE_AI_STUDIO_API_KEY,
     PRIMARY_MODEL_ID: env.PRIMARY_MODEL_ID,
     FALLBACK_MODEL_ID: env.FALLBACK_MODEL_ID,
+    JOB_EXECUTION_MODE: jobExecutionMode,
   };
 }

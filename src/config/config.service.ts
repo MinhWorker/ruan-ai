@@ -46,4 +46,8 @@ export class ConfigService {
   get fallbackModelId(): string | undefined {
     return this.config.FALLBACK_MODEL_ID;
   }
+
+  get jobExecutionMode(): 'inline' | 'queued' {
+    return this.config.JOB_EXECUTION_MODE;
+  }
 }

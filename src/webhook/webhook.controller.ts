@@ -13,6 +13,7 @@ import { SignatureGuard } from './guards/signature.guard';
 import { WebhookService } from './webhook.service';
 import type { GitHubWebhookBody } from './webhook.service';
 import { JobService } from '../job/job.service';
+import { JobExecutionService } from '../execution/job-execution.service';
 
 @Controller('github/webhooks')
 export class WebhookController {
@@ -21,6 +22,7 @@ export class WebhookController {
   constructor(
     private readonly webhookService: WebhookService,
     private readonly jobService: JobService,
+    private readonly jobExecutionService: JobExecutionService,
   ) {}
 
   @Post()
@@ -141,9 +143,12 @@ export class WebhookController {
       installationId,
     });
 
+    const execution = await this.jobExecutionService.executeJob(job);
+
     return {
       status: 'accepted',
       jobId: job.jobId,
+      execution,
     };
   }
 }
