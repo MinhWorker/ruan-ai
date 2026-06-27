@@ -42,3 +42,6 @@ Thumbs.db
 .tmp
 tmp
 temp
+
+# local upstream research clones
+/.research

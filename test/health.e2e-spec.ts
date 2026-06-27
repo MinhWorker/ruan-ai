@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { AppModule } from '../src/app.module';
 
-describe('AppController (e2e)', () => {
+describe('HealthController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
-    process.env.GITHUB_WEBHOOK_SECRET = 'e2e-app-secret';
+  beforeAll(async () => {
+    process.env.GITHUB_WEBHOOK_SECRET = 'e2e-secret-key';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -18,10 +18,18 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /health', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect((res) => {
+        const body = res.body as Record<string, unknown>;
+        expect(body.status).toBe('ok');
+        expect(body.timestamp).toBeDefined();
+      });
   });
 });
