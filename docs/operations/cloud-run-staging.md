@@ -119,6 +119,8 @@ Current pilot values:
 
 Note: `JOB_EXECUTION_MODE=queued` (default) will accept and queue the webhook but will not execute it. Set to `inline` to execute workflows.
 
+For automated deployments, use the Cloud Build pipeline in `cloudbuild.yaml`. The manual command above remains useful for emergency rollback or one-off environment variable changes.
+
 ### What each flag does
 
 | Flag | Purpose |
