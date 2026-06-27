@@ -67,6 +67,7 @@ export class BlockerWorkflowService {
         const repairedRaw = (await this.aiClient.repair(
           validation.errors,
           contextSummary,
+          'blocker',
         )) as unknown;
         validation = validateBlockerOutput(repairedRaw);
 

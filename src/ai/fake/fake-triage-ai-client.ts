@@ -152,10 +152,15 @@ export class FakeTriageAiClient extends AiClient {
   private repairBehavior?: (
     validationErrors: string[],
     contextSummary: string,
+    targetWorkflow: string,
   ) => any;
 
   setRepairBehavior(
-    fn: (validationErrors: string[], contextSummary: string) => any,
+    fn: (
+      validationErrors: string[],
+      contextSummary: string,
+      targetWorkflow: string,
+    ) => any,
   ) {
     this.repairBehavior = fn;
   }
@@ -452,13 +457,18 @@ export class FakeTriageAiClient extends AiClient {
   async repair(
     validationErrors: string[],
     contextSummary: string,
+    targetWorkflow: string,
   ): Promise<any> {
     await Promise.resolve();
     if (this.repairBehavior) {
-      return this.repairBehavior(validationErrors, contextSummary);
+      return this.repairBehavior(
+        validationErrors,
+        contextSummary,
+        targetWorkflow,
+      );
     }
 
-    if (contextSummary.includes('plan')) {
+    if (targetWorkflow === 'plan') {
       return {
         workflow: 'plan',
         problemStatement: 'Repaired problem statement.',
@@ -474,7 +484,7 @@ export class FakeTriageAiClient extends AiClient {
         assumptions: [],
         evidence: [],
       };
-    } else if (contextSummary.includes('status')) {
+    } else if (targetWorkflow === 'status') {
       return {
         workflow: 'status',
         state: 'in_progress',
@@ -487,7 +497,7 @@ export class FakeTriageAiClient extends AiClient {
         assumptions: [],
         evidence: [],
       };
-    } else if (contextSummary.includes('blocker')) {
+    } else if (targetWorkflow === 'blocker') {
       return {
         workflow: 'blocker',
         summary: 'Repaired blocker summary',
@@ -495,6 +505,19 @@ export class FakeTriageAiClient extends AiClient {
         nextProvingMethod: 'Repaired method',
         directHumanQuestions: [],
         commentBody: 'Repaired blocker.',
+        confidence: 'high',
+        assumptions: [],
+        evidence: [],
+      };
+    } else if (targetWorkflow === 'triage') {
+      return {
+        workflow: 'triage',
+        summary: 'Repaired triage summary',
+        riskLevel: 'low',
+        suggestedLabels: [],
+        missingInformation: [],
+        recommendedNextCommand: '/plan',
+        commentBody: 'Repaired triage.',
         confidence: 'high',
         assumptions: [],
         evidence: [],

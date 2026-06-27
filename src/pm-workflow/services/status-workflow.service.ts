@@ -66,6 +66,7 @@ export class StatusWorkflowService {
         const repairedRaw = (await this.aiClient.repair(
           validation.errors,
           contextSummary,
+          'status',
         )) as unknown;
         validation = validateStatusOutput(repairedRaw);
 

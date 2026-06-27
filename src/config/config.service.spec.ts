@@ -83,6 +83,36 @@ describe('ConfigValidation', () => {
       'PROVIDER_MODE must be either "fake" or "real"',
     );
   });
+
+  it('should default AI_MODEL_TIMEOUT_MS to 120000', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'my-secret',
+    };
+
+    const config = validateConfig(env);
+    expect(config.AI_MODEL_TIMEOUT_MS).toBe(120000);
+  });
+
+  it('should accept a custom AI_MODEL_TIMEOUT_MS', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'my-secret',
+      AI_MODEL_TIMEOUT_MS: '60000',
+    };
+
+    const config = validateConfig(env);
+    expect(config.AI_MODEL_TIMEOUT_MS).toBe(60000);
+  });
+
+  it('should throw error if AI_MODEL_TIMEOUT_MS is below 5000', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'my-secret',
+      AI_MODEL_TIMEOUT_MS: '1000',
+    };
+
+    expect(() => validateConfig(env)).toThrow(
+      'AI_MODEL_TIMEOUT_MS must be a number >= 5000',
+    );
+  });
 });
 
 describe('ConfigService', () => {

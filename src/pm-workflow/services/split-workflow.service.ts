@@ -66,6 +66,7 @@ export class SplitWorkflowService {
         const repairedRaw = (await this.aiClient.repair(
           validation.errors,
           contextSummary,
+          'split',
         )) as unknown;
         validation = validateSplitOutput(repairedRaw);
 
