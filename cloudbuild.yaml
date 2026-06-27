@@ -115,7 +115,7 @@ steps:
       - |
         set -euo pipefail
         SERVICE_URL="$(gcloud run services describe "${_SERVICE_NAME}" --project="$PROJECT_ID" --region="${_REGION}" --format='value(status.url)')"
-        curl --fail --show-error --silent "${SERVICE_URL}/health"
+        curl --fail --show-error --silent "$${SERVICE_URL}/health"
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$SHORT_SHA
