@@ -7,8 +7,9 @@ This project is intended to be implemented by multiple coding agents. Agents mus
 1. Read `00-index.md`.
 2. Read the subsystem doc that controls the task.
 3. Check ADRs under `decisions/`.
-4. Inspect current code before editing.
-5. Keep changes inside the task boundary.
+4. Read `AGENTS.md` and `docs/operations/release-management.md` before touching deployment, CI/CD, branches, or releases.
+5. Inspect current code before editing.
+6. Keep changes inside the task boundary.
 
 ## Task Handoff Format
 
@@ -31,6 +32,7 @@ Each implementation task should include:
 - Do not introduce PR review as a primary workflow in MVP.
 - Do not add a database-heavy domain model before job/idempotency needs require it.
 - Do not hard-code model IDs without validation and fallback behavior.
+- Do not deploy, change Cloud Run configuration, or create release tags unless the task explicitly authorizes it.
 
 ## Verification Rules
 
@@ -50,4 +52,3 @@ If implementation discovers a design conflict, update the relevant doc or ADR in
 ## Third-Party AI Delegation
 
 Do not rely on Antigravity or Gemini Subagents for required implementation work in this project until a future ADR approves it. Local testing on this machine found both paths too unreliable or slow for the current phase.
-

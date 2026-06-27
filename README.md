@@ -1,98 +1,70 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Ruan AI
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Ruan AI is a NestJS GitHub App backend for AI-assisted project management.
+It receives GitHub webhooks, validates and normalizes issue events/comments,
+calls Google AI Studio through a provider abstraction, applies policy checks,
+and writes PM-oriented comments or labels back to GitHub.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Start Here
 
-## Description
+For agents and developers:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+1. Read `AGENTS.md`.
+2. Read `docs/design/00-index.md`.
+3. Read `docs/operations/ci-cd.md` before touching branches, releases, or deployment.
+4. Read the subsystem design doc for the task.
 
-## Project setup
+Do not deploy, change release branches, create release tags, or alter Cloud Run
+configuration unless the task explicitly asks for that operational change.
 
-```bash
-$ npm install
+## Current Runtime
+
+- Framework: NestJS 11.
+- Deployment target: Cloud Run staging service `ruan-ai-staging`.
+- CI/CD config: `cloudbuild.yaml`.
+- Staging provider mode: real providers can be enabled through Secret Manager.
+- Default local/test mode: fake providers.
+
+## Local Setup
+
+```powershell
+npm ci
 ```
 
-## Compile and run the project
+## Verification
 
-```bash
-# development
-$ npm run start
+Use fake provider mode for normal local checks:
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```powershell
+$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run build
+$env:GITHUB_WEBHOOK_SECRET='test-secret'; npx eslint "{src,apps,libs,test}/**/*.ts" --max-warnings=0
+$env:GITHUB_WEBHOOK_SECRET='test-secret'; npx jest --runInBand
+$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run test:e2e
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
+`npm run lint` currently runs ESLint with `--fix`; CI uses check-only ESLint.
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Normal deployment is handled by Cloud Build from the configured staging branch.
+Manual Cloud Run deployment is reserved for owner-approved emergency rollback or
+one-off environment updates.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+See:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+- `docs/operations/ci-cd.md`
+- `docs/operations/cloud-run-staging.md`
+- `docs/operations/release-management.md`
+
+## Live Tests
+
+Live integration tests are skipped unless explicitly opted in:
+
+```powershell
+$env:RUN_LIVE_INTEGRATION='true'
+$env:PROVIDER_MODE='real'
+npx jest --config ./test/jest-e2e.json test/live-integration.e2e-spec.ts --runInBand
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Live write tests are not part of normal CI/CD and require explicit owner
+approval plus a disposable issue and label.

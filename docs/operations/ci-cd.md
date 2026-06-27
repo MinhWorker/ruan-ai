@@ -63,6 +63,8 @@ Recommended flow:
 
 For this early project, it is acceptable to temporarily connect Cloud Build to `codex/milestone-1-checkpoint`, but switch to `staging` before letting multiple agents work concurrently.
 
+The release and deployment rules are defined in `docs/operations/release-management.md`.
+
 ## Versioning
 
 Use tags for official releases:
