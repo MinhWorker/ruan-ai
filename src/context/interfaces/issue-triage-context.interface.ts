@@ -2,7 +2,7 @@ import { RepositoryLabel } from '../../github-client/interfaces/github-client.in
 
 /**
  * Bounded context packet for the issue triage workflow.
- * All fields are plain data — issue body is treated as untrusted user content.
+ * All fields are plain data - issue body is treated as untrusted user content.
  */
 export interface IssueTriageContext {
   /** Fixed event type for triage context. */

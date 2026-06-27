@@ -9,7 +9,7 @@ import { Job } from '../../job/interfaces/job.interface';
 
 /**
  * Hidden HTML marker for triage comments.
- * Used for idempotent upsert — future runs can find and update this comment.
+ * Used for idempotent upsert - future runs can find and update this comment.
  */
 function triageMarker(issueNumber: number): string {
   return `<!-- ruan-ai:workflow=triage issue=${issueNumber} logical=triage-result version=1 -->`;
@@ -29,13 +29,13 @@ export interface TriageWorkflowResult {
 
 /**
  * Orchestrates the issue triage workflow:
- *   1. Update job status → running
+ *   1. Update job status to running
  *   2. Build triage context
  *   3. Request AI triage output
  *   4. Validate output schema
  *   5. Validate output against policy
  *   6. Write allowed labels and comment
- *   7. Update job status → completed/failed
+ *   7. Update job status to completed/failed
  */
 @Injectable()
 export class TriageWorkflowService {

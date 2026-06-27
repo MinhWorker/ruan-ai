@@ -116,5 +116,127 @@ describe('WebhookController', () => {
       expect(job?.senderLogin).toBe('octocat');
       expect(job?.workflowType).toBe('issue.opened');
     });
+
+    it('should create a comment.plan job when /plan command is present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-4',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 101, body: 'Let us do this /plan now.' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+
+      const response = await controller.handleWebhook(headers, body);
+      expect(response.status).toBe('accepted');
+
+      const job = await jobService.getJobByDeliveryId('dlv-4');
+      expect(job?.workflowType).toBe('comment.plan');
+    });
+
+    it('should create a comment.split job when /split command is present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-5',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 102, body: 'Run /split please.' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+
+      const response = await controller.handleWebhook(headers, body);
+      expect(response.status).toBe('accepted');
+
+      const job = await jobService.getJobByDeliveryId('dlv-5');
+      expect(job?.workflowType).toBe('comment.split');
+    });
+
+    it('should select first command in textual order when both /split and /plan are present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-6',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 103, body: 'First /split then /plan.' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+
+      const response = await controller.handleWebhook(headers, body);
+      expect(response.status).toBe('accepted');
+
+      const job = await jobService.getJobByDeliveryId('dlv-6');
+      expect(job?.workflowType).toBe('comment.split');
+    });
+
+    it('should return ignored status when comment has no commands', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-7',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 104, body: 'Just a normal comment.' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+
+      const response = await controller.handleWebhook(headers, body);
+      expect(response.status).toBe('ignored');
+    });
+
+    it('should create comment.unsupported job when only unsupported commands are present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-8',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 105, body: 'Call /status or /deploy.' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+
+      const response = await controller.handleWebhook(headers, body);
+      expect(response.status).toBe('accepted');
+
+      const job = await jobService.getJobByDeliveryId('dlv-8');
+      expect(job?.workflowType).toBe('comment.unsupported');
+    });
   });
 });

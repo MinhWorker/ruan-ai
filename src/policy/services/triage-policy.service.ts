@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TriageOutput } from '../../ai/interfaces/triage-output.interface';
+import { PlanOutput } from '../../ai/interfaces/plan-output.interface';
+import { SplitOutput } from '../../ai/interfaces/split-output.interface';
 import { PolicyValidationResult } from '../interfaces/policy-validation-result.interface';
 
 /**
@@ -101,6 +103,76 @@ export class TriagePolicyService {
       rejectedLabels,
       commentAllowed: commentValidation.allowed,
       commentRejectionReason: commentValidation.reason,
+      warnings,
+    };
+  }
+
+  validatePlan(output: PlanOutput): PolicyValidationResult {
+    const commentValidation = this.validateComment(output.commentBody);
+    return {
+      valid: commentValidation.allowed,
+      allowedLabels: [],
+      rejectedLabels: [],
+      commentAllowed: commentValidation.allowed,
+      commentRejectionReason: commentValidation.reason,
+      warnings: [],
+    };
+  }
+
+  validateSplit(
+    output: SplitOutput,
+    hasActivePlan: boolean,
+  ): PolicyValidationResult {
+    const warnings: string[] = [];
+
+    // Rule: Workflow transition validation - Split requires an active plan
+    if (!hasActivePlan) {
+      this.logger.warn(
+        'Workflow transition rejected: Split requires an active plan',
+      );
+      return {
+        valid: false,
+        allowedLabels: [],
+        rejectedLabels: [],
+        commentAllowed: false,
+        commentRejectionReason:
+          'Split workflow transition is not allowed without an active plan',
+        warnings: ['No active plan found on the issue'],
+      };
+    }
+
+    // Rule: Validate task handoff output does not authorize direct repository mutation
+    const safeOperations = new Set([
+      'create',
+      'edit',
+      'view',
+      'inspect',
+      'read',
+    ]);
+    let allTasksSafe = true;
+    for (const task of output.tasks) {
+      for (const op of task.allowedOperations) {
+        if (!safeOperations.has(op.toLowerCase())) {
+          allTasksSafe = false;
+          warnings.push(
+            `Task ${task.id} requests unauthorized repository mutation: "${op}"`,
+          );
+        }
+      }
+    }
+
+    const commentValidation = this.validateComment(output.commentBody);
+    const commentAllowed = commentValidation.allowed && allTasksSafe;
+    const commentRejectionReason = !allTasksSafe
+      ? 'Split contains tasks requesting unauthorized operations'
+      : commentValidation.reason;
+
+    return {
+      valid: commentAllowed,
+      allowedLabels: [],
+      rejectedLabels: [],
+      commentAllowed,
+      commentRejectionReason,
       warnings,
     };
   }

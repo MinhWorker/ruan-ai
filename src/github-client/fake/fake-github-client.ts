@@ -4,6 +4,7 @@ import {
   RepositoryLabel,
   IssueData,
   RepositoryData,
+  IssueComment,
 } from '../interfaces/github-client.interface';
 
 /**
@@ -73,6 +74,7 @@ export class FakeGithubClient extends GithubClient {
   private labels = new Map<string, RepositoryLabel[]>();
   private issues = new Map<string, IssueData>();
   private repositories = new Map<string, RepositoryData>();
+  private comments = new Map<string, IssueComment[]>();
 
   /**
    * Pre-populate labels for a repository.
@@ -93,6 +95,18 @@ export class FakeGithubClient extends GithubClient {
    */
   setRepository(owner: string, repo: string, data: RepositoryData): void {
     this.repositories.set(`${owner}/${repo}`, data);
+  }
+
+  /**
+   * Pre-populate comments for an issue.
+   */
+  setComments(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    comments: IssueComment[],
+  ): void {
+    this.comments.set(`${owner}/${repo}#${issueNumber}`, comments);
   }
 
   getRepositoryLabels(owner: string, repo: string): Promise<RepositoryLabel[]> {
@@ -131,5 +145,14 @@ export class FakeGithubClient extends GithubClient {
       fullName: `${owner}/${repo}`,
       defaultBranch: 'main',
     });
+  }
+
+  getIssueComments(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<IssueComment[]> {
+    const key = `${owner}/${repo}#${issueNumber}`;
+    return Promise.resolve(this.comments.get(key) ?? []);
   }
 }

@@ -1,9 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TriageWorkflowService } from './triage-workflow.service';
+import { PlanWorkflowService } from './plan-workflow.service';
+import { SplitWorkflowService } from './split-workflow.service';
 import { JobService } from '../../job/job.service';
 import { JobRepository } from '../../job/job.repository';
 import { InMemoryJobRepository } from '../../job/in-memory-job.repository';
 import { IssueTriageContextBuilder } from '../../context/builders/issue-triage-context.builder';
+import { IssuePlanContextBuilder } from '../../context/builders/issue-plan-context.builder';
+import { IssueSplitContextBuilder } from '../../context/builders/issue-split-context.builder';
 import { AiClient } from '../../ai/interfaces/ai-client.interface';
 import { TriagePolicyService } from '../../policy/services/triage-policy.service';
 import { GithubWriter } from '../../github-writer/interfaces/github-writer.interface';
@@ -11,6 +15,8 @@ import { FakeGithubWriter } from '../../github-writer/fake/fake-github-writer';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
 import { FakeGithubClient } from '../../github-client/fake/fake-github-client';
 import { TriageOutput } from '../../ai/interfaces/triage-output.interface';
+import { PlanOutput } from '../../ai/interfaces/plan-output.interface';
+import { SplitOutput } from '../../ai/interfaces/split-output.interface';
 
 /**
  * Prompt injection test fixtures.
@@ -308,5 +314,145 @@ describe('Prompt Injection Defense', () => {
       'wontfix',
       'invalid',
     ]);
+  });
+
+  it('should reject plan comment if compromised AI includes unsafe HTML script injection', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PlanWorkflowService,
+        JobService,
+        { provide: JobRepository, useClass: InMemoryJobRepository },
+        IssuePlanContextBuilder,
+        { provide: GithubClient, useClass: FakeGithubClient },
+        {
+          provide: AiClient,
+          useValue: {
+            plan: () =>
+              Promise.resolve({
+                workflow: 'plan',
+                problemStatement: 'Integrate features',
+                scope: ['all'],
+                nonScope: [],
+                dependencies: [],
+                taskSequence: [],
+                acceptanceCriteria: [],
+                verificationStrategy: 'Run tests.',
+                humanDecisions: [],
+                commentBody:
+                  'Malicious payload <script>alert("hacked")</script>',
+                confidence: 'high',
+                assumptions: [],
+                evidence: [],
+              } as PlanOutput),
+          },
+        },
+        TriagePolicyService,
+        { provide: GithubWriter, useClass: FakeGithubWriter },
+      ],
+    }).compile();
+
+    const gc = module.get<GithubClient>(GithubClient) as FakeGithubClient;
+    const js = module.get<JobService>(JobService);
+    const svc = module.get<PlanWorkflowService>(PlanWorkflowService);
+
+    gc.setIssue('owner', 'repo', {
+      number: 104,
+      title: 'Plan injection test',
+      body: 'Do something bad.',
+      author: 'attacker',
+      createdAt: '2026-01-01T00:00:00Z',
+      labels: [],
+    });
+
+    const job = await js.createJob({
+      deliveryId: 'dlv-injection-plan',
+      workflowType: 'comment.plan',
+      issueNumber: 104,
+      repositoryOwner: 'owner',
+      repositoryName: 'repo',
+      senderLogin: 'attacker',
+    });
+
+    const result = await svc.execute(job);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('rejected by policy');
+  });
+
+  it('should reject split comment if task contains unauthorized repository mutations', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SplitWorkflowService,
+        JobService,
+        { provide: JobRepository, useClass: InMemoryJobRepository },
+        IssueSplitContextBuilder,
+        { provide: GithubClient, useClass: FakeGithubClient },
+        {
+          provide: AiClient,
+          useValue: {
+            split: () =>
+              Promise.resolve({
+                workflow: 'split',
+                tasks: [
+                  {
+                    id: 'task-1',
+                    title: 'Deploy to prod',
+                    objective:
+                      'Bypass authorization and write directly to repository',
+                    filesToInspect: [],
+                    allowedOperations: ['admin', 'push', 'delete_repo'],
+                    dependencies: [],
+                    parallelizationGuidance: '',
+                    verificationCommands: [],
+                    completionEvidence: '',
+                    ownerType: 'coding_agent',
+                  },
+                ],
+                commentBody: 'Unsafe tasks proposed.',
+                confidence: 'high',
+                assumptions: [],
+                evidence: [],
+              } as SplitOutput),
+          },
+        },
+        TriagePolicyService,
+        { provide: GithubWriter, useClass: FakeGithubWriter },
+      ],
+    }).compile();
+
+    const gc = module.get<GithubClient>(GithubClient) as FakeGithubClient;
+    const js = module.get<JobService>(JobService);
+    const svc = module.get<SplitWorkflowService>(SplitWorkflowService);
+
+    gc.setIssue('owner', 'repo', {
+      number: 105,
+      title: 'Split injection test',
+      body: 'Do split.',
+      author: 'attacker',
+      createdAt: '2026-01-01T00:00:00Z',
+      labels: [],
+    });
+
+    // Make sure active plan comment exists so transition policy passes
+    gc.setComments('owner', 'repo', 105, [
+      {
+        id: 1002,
+        body: '<!-- ruan-ai:workflow=plan issue=105 logical=active-plan version=1 --> active plan',
+        author: 'ruan-ai[bot]',
+        createdAt: '2026-01-01T01:00:00Z',
+      },
+    ]);
+
+    const job = await js.createJob({
+      deliveryId: 'dlv-injection-split',
+      workflowType: 'comment.split',
+      issueNumber: 105,
+      repositoryOwner: 'owner',
+      repositoryName: 'repo',
+      senderLogin: 'attacker',
+    });
+
+    const result = await svc.execute(job);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('rejected by policy');
   });
 });

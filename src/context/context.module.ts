@@ -1,10 +1,20 @@
 import { Module } from '@nestjs/common';
 import { GithubClientModule } from '../github-client/github-client.module';
 import { IssueTriageContextBuilder } from './builders/issue-triage-context.builder';
+import { IssuePlanContextBuilder } from './builders/issue-plan-context.builder';
+import { IssueSplitContextBuilder } from './builders/issue-split-context.builder';
 
 @Module({
   imports: [GithubClientModule],
-  providers: [IssueTriageContextBuilder],
-  exports: [IssueTriageContextBuilder],
+  providers: [
+    IssueTriageContextBuilder,
+    IssuePlanContextBuilder,
+    IssueSplitContextBuilder,
+  ],
+  exports: [
+    IssueTriageContextBuilder,
+    IssuePlanContextBuilder,
+    IssueSplitContextBuilder,
+  ],
 })
 export class ContextModule {}

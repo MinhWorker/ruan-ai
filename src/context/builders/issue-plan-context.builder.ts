@@ -1,29 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
-import { IssueTriageContext } from '../interfaces/issue-triage-context.interface';
+import { IssuePlanContext } from '../interfaces/issue-plan-context.interface';
 
-/**
- * Default maximum labels the AI can suggest in a single triage.
- */
-const DEFAULT_MAX_LABELS = 5;
-
-/**
- * Maximum allowed length for issue body in the context packet.
- * Truncated beyond this to stay within AI context window bounds.
- */
 const MAX_BODY_LENGTH = 10_000;
 
-/**
- * Builds the bounded IssueTriageContext packet for the triage workflow.
- *
- * Key design decisions:
- * - Issue body is included as-is (truncated if huge) - treated as DATA, not instruction.
- * - No sanitization of body content here; that is the AI prompt's and policy's responsibility.
- * - Repository labels are fetched fresh each time to reflect current state.
- */
 @Injectable()
-export class IssueTriageContextBuilder {
-  private readonly logger = new Logger(IssueTriageContextBuilder.name);
+export class IssuePlanContextBuilder {
+  private readonly logger = new Logger(IssuePlanContextBuilder.name);
 
   constructor(private readonly githubClient: GithubClient) {}
 
@@ -32,16 +15,20 @@ export class IssueTriageContextBuilder {
     repo: string;
     issueNumber: number;
     senderLogin: string;
-    labelAllowlist?: string[];
-  }): Promise<IssueTriageContext> {
+  }): Promise<IssuePlanContext> {
     this.logger.log(
-      `Building triage context for ${params.owner}/${params.repo}#${params.issueNumber}`,
+      `Building plan context for ${params.owner}/${params.repo}#${params.issueNumber}`,
     );
 
-    const [repository, issue, repositoryLabels] = await Promise.all([
+    const [repository, issue, repositoryLabels, comments] = await Promise.all([
       this.githubClient.getRepository(params.owner, params.repo),
       this.githubClient.getIssue(params.owner, params.repo, params.issueNumber),
       this.githubClient.getRepositoryLabels(params.owner, params.repo),
+      this.githubClient.getIssueComments(
+        params.owner,
+        params.repo,
+        params.issueNumber,
+      ),
     ]);
 
     const body =
@@ -49,8 +36,21 @@ export class IssueTriageContextBuilder {
         ? issue.body.slice(0, MAX_BODY_LENGTH) + '\n[TRUNCATED]'
         : issue.body;
 
+    // Identify prior triage/plan comments from the issue comment history
+    let priorTriageComment: string | undefined;
+    let priorPlanComment: string | undefined;
+
+    for (const comment of comments) {
+      if (comment.body.includes('ruan-ai:workflow=triage')) {
+        priorTriageComment = comment.body;
+      }
+      if (comment.body.includes('ruan-ai:workflow=plan')) {
+        priorPlanComment = comment.body;
+      }
+    }
+
     return {
-      eventType: 'issues.opened',
+      eventType: 'comment.created',
       repository: {
         id: repository.id,
         fullName: repository.fullName,
@@ -68,10 +68,10 @@ export class IssueTriageContextBuilder {
       },
       repositoryLabels,
       currentIssueLabels: issue.labels,
-      config: {
-        labelAllowlist: params.labelAllowlist ?? null,
-        maxLabels: DEFAULT_MAX_LABELS,
-      },
+      recentComments: comments,
+      priorTriageComment,
+      priorPlanComment,
+      config: {},
     };
   }
 }

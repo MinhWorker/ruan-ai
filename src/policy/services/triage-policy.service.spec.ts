@@ -342,4 +342,125 @@ describe('TriagePolicyService', () => {
       expect(result.commentAllowed).toBe(false);
     });
   });
+
+  describe('validatePlan', () => {
+    it('should allow valid plan comments', () => {
+      const plan = {
+        workflow: 'plan' as const,
+        problemStatement: 'Integrate Milestone 3 features.',
+        scope: ['implement plan workflow'],
+        nonScope: [],
+        dependencies: [],
+        taskSequence: ['1. Setup interface files'],
+        acceptanceCriteria: ['all tests pass'],
+        verificationStrategy: 'Run npm run test.',
+        humanDecisions: [],
+        commentBody: 'Proposed plan body with enough characters.',
+        confidence: 'high' as const,
+        assumptions: [],
+        evidence: [],
+      };
+      const result = service.validatePlan(plan);
+      expect(result.valid).toBe(true);
+      expect(result.commentAllowed).toBe(true);
+    });
+
+    it('should reject short plan comments', () => {
+      const plan = {
+        workflow: 'plan' as const,
+        problemStatement: 'Integrate Milestone 3 features.',
+        scope: ['implement plan workflow'],
+        nonScope: [],
+        dependencies: [],
+        taskSequence: ['1. Setup interface files'],
+        acceptanceCriteria: ['all tests pass'],
+        verificationStrategy: 'Run npm run test.',
+        humanDecisions: [],
+        commentBody: 'Short',
+        confidence: 'high' as const,
+        assumptions: [],
+        evidence: [],
+      };
+      const result = service.validatePlan(plan);
+      expect(result.valid).toBe(false);
+      expect(result.commentAllowed).toBe(false);
+    });
+  });
+
+  describe('validateSplit', () => {
+    const validSplit = {
+      workflow: 'split' as const,
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Implement component A',
+          objective: 'Build A independently',
+          filesToInspect: ['src/components/a.ts'],
+          allowedOperations: ['create', 'edit'],
+          dependencies: [],
+          parallelizationGuidance: 'Can run in parallel with task-2.',
+          verificationCommands: ['npm run test'],
+          completionEvidence: 'Tests pass.',
+          ownerType: 'coding_agent' as const,
+        },
+      ],
+      commentBody: 'Proposed split comment body with enough characters.',
+      confidence: 'high' as const,
+      assumptions: [],
+      evidence: [],
+    };
+
+    it('should allow valid split output when active plan is present', () => {
+      const result = service.validateSplit(validSplit, true);
+      expect(result.valid).toBe(true);
+      expect(result.commentAllowed).toBe(true);
+    });
+
+    it('should reject split output when no active plan is present', () => {
+      const result = service.validateSplit(validSplit, false);
+      expect(result.valid).toBe(false);
+      expect(result.commentRejectionReason).toContain('without an active plan');
+    });
+
+    it('should reject split output when task requests unauthorized mutation', () => {
+      const unauthorizedSplit = {
+        ...validSplit,
+        tasks: [
+          {
+            ...validSplit.tasks[0],
+            allowedOperations: ['admin', 'create'],
+          },
+        ],
+      };
+      const result = service.validateSplit(unauthorizedSplit, true);
+      expect(result.valid).toBe(false);
+      expect(result.commentRejectionReason).toContain(
+        'unauthorized operations',
+      );
+      expect(
+        result.warnings.some((w) =>
+          w.includes('unauthorized repository mutation'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should reject delete as an unsafe split operation', () => {
+      const unsafeDeleteSplit = {
+        ...validSplit,
+        tasks: [
+          {
+            ...validSplit.tasks[0],
+            allowedOperations: ['delete'],
+          },
+        ],
+      };
+
+      const result = service.validateSplit(unsafeDeleteSplit, true);
+
+      expect(result.valid).toBe(false);
+      expect(result.commentRejectionReason).toContain(
+        'unauthorized operations',
+      );
+    });
+  });
 });

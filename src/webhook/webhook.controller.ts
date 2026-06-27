@@ -97,7 +97,28 @@ export class WebhookController {
       }
     }
 
-    const workflowType = `${normalized.eventType}.${normalized.action}`;
+    let workflowType = `${normalized.eventType}.${normalized.action}`;
+    if (normalized.eventType === 'comment') {
+      // Find the first recognized command in textual order
+      const recognized = normalized.commands.find(
+        (cmd) => cmd === '/plan' || cmd === '/split',
+      );
+      if (recognized) {
+        workflowType = `comment.${recognized.slice(1)}`; // comment.plan or comment.split
+      } else if (normalized.commands.length > 0) {
+        workflowType = 'comment.unsupported';
+      } else {
+        // Normal comment with no commands is ignored
+        this.logger.log(
+          `Ignoring normal comment without commands on issue #${normalized.issueNumber}`,
+        );
+        return {
+          status: 'ignored',
+          reason: 'No slash commands in comment',
+        };
+      }
+    }
+
     const job = await this.jobService.createJob({
       deliveryId,
       workflowType,

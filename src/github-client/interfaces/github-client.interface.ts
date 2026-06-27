@@ -29,6 +29,16 @@ export interface RepositoryData {
 }
 
 /**
+ * Issue comment metadata.
+ */
+export interface IssueComment {
+  id: number;
+  body: string;
+  author: string;
+  createdAt: string;
+}
+
+/**
  * Abstract GitHub read client for fetching repository and issue metadata.
  * Implementations: FakeGithubClient (tests/dev), real GitHub REST client (future milestones).
  */
@@ -45,4 +55,10 @@ export abstract class GithubClient {
   ): Promise<IssueData>;
 
   abstract getRepository(owner: string, repo: string): Promise<RepositoryData>;
+
+  abstract getIssueComments(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<IssueComment[]>;
 }

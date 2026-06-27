@@ -5,7 +5,7 @@
 export abstract class GithubWriter {
   /**
    * Apply labels to an issue. Should be additive (not remove existing labels).
-   * Must be idempotent — applying the same labels again is a no-op.
+   * Must be idempotent - applying the same labels again is a no-op.
    */
   abstract applyLabels(
     owner: string,
