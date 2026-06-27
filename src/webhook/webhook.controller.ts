@@ -76,6 +76,8 @@ export class WebhookController {
     let repositoryOwner: string | undefined;
     let repositoryName: string | undefined;
     let senderLogin: string | undefined;
+    let commentId: number | undefined;
+    let commentBody: string | undefined;
     let installationId: number | undefined;
 
     if (normalized.eventType === 'issue') {
@@ -90,6 +92,8 @@ export class WebhookController {
       repositoryOwner = normalized.repositoryOwner;
       repositoryName = normalized.repositoryName;
       senderLogin = normalized.sender.login;
+      commentId = normalized.commentId;
+      commentBody = normalized.body;
     } else if (normalized.eventType === 'installation') {
       installationId = normalized.installationId;
       if (normalized.repositoryIds && normalized.repositoryIds.length > 0) {
@@ -101,7 +105,12 @@ export class WebhookController {
     if (normalized.eventType === 'comment') {
       // Find the first recognized command in textual order
       const recognized = normalized.commands.find(
-        (cmd) => cmd === '/plan' || cmd === '/split',
+        (cmd) =>
+          cmd === '/plan' ||
+          cmd === '/split' ||
+          cmd === '/status' ||
+          cmd === '/blocker' ||
+          cmd === '/stop',
       );
       if (recognized) {
         workflowType = `comment.${recognized.slice(1)}`; // comment.plan or comment.split
@@ -127,6 +136,8 @@ export class WebhookController {
       repositoryOwner,
       repositoryName,
       senderLogin,
+      commentId,
+      commentBody,
       installationId,
     });
 

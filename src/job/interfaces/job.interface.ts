@@ -20,5 +20,7 @@ export interface Job {
   repositoryOwner?: string;
   repositoryName?: string;
   senderLogin?: string;
+  commentId?: number;
+  commentBody?: string;
   installationId?: number;
 }

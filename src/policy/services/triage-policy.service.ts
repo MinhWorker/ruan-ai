@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { TriageOutput } from '../../ai/interfaces/triage-output.interface';
 import { PlanOutput } from '../../ai/interfaces/plan-output.interface';
 import { SplitOutput } from '../../ai/interfaces/split-output.interface';
+import { StatusOutput } from '../../ai/interfaces/status-output.interface';
+import { BlockerOutput } from '../../ai/interfaces/blocker-output.interface';
 import { PolicyValidationResult } from '../interfaces/policy-validation-result.interface';
 
 /**
@@ -174,6 +176,30 @@ export class TriagePolicyService {
       commentAllowed,
       commentRejectionReason,
       warnings,
+    };
+  }
+
+  validateStatus(output: StatusOutput): PolicyValidationResult {
+    const commentValidation = this.validateComment(output.commentBody);
+    return {
+      valid: commentValidation.allowed,
+      allowedLabels: [],
+      rejectedLabels: [],
+      commentAllowed: commentValidation.allowed,
+      commentRejectionReason: commentValidation.reason,
+      warnings: [],
+    };
+  }
+
+  validateBlocker(output: BlockerOutput): PolicyValidationResult {
+    const commentValidation = this.validateComment(output.commentBody);
+    return {
+      valid: commentValidation.allowed,
+      allowedLabels: [],
+      rejectedLabels: [],
+      commentAllowed: commentValidation.allowed,
+      commentRejectionReason: commentValidation.reason,
+      warnings: [],
     };
   }
 

@@ -36,6 +36,8 @@ describe('JobService', () => {
         repositoryOwner: 'octo-org',
         repositoryName: 'octo-repo',
         senderLogin: 'octocat',
+        commentId: 123,
+        commentBody: '/blocker this is blocked',
         installationId: 111,
       });
 
@@ -48,6 +50,8 @@ describe('JobService', () => {
       expect(job.repositoryOwner).toBe('octo-org');
       expect(job.repositoryName).toBe('octo-repo');
       expect(job.senderLogin).toBe('octocat');
+      expect(job.commentId).toBe(123);
+      expect(job.commentBody).toBe('/blocker this is blocked');
       expect(job.installationId).toBe(111);
 
       const saved = await repository.findByDeliveryId('dlv-123');

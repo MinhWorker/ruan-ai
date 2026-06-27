@@ -143,4 +143,88 @@ describe('GithubWebhookController (e2e)', () => {
         expect(body.reason).toBeDefined();
       });
   });
+
+  it('POST /github/webhooks accepts /status command with 202', () => {
+    const payload = {
+      action: 'created',
+      issue: { number: 10, title: 'Test', body: 'Test' },
+      comment: { id: 201, body: '/status please' },
+      repository: {
+        id: 123,
+        name: 'ruan-ai',
+        full_name: 'MinhWorker/ruan-ai',
+        owner: { login: 'MinhWorker' },
+      },
+      sender: { login: 'tester', id: 4 },
+    };
+    const sig = getSignature(payload);
+
+    return request(app.getHttpServer())
+      .post('/github/webhooks')
+      .set('x-hub-signature-256', sig)
+      .set('x-github-event', 'issue_comment')
+      .set('x-github-delivery', 'delivery-id-e2e-status')
+      .send(payload)
+      .expect(202)
+      .expect((res) => {
+        const body = res.body as Record<string, unknown>;
+        expect(body.status).toBe('accepted');
+      });
+  });
+
+  it('POST /github/webhooks accepts /blocker command with 202', () => {
+    const payload = {
+      action: 'created',
+      issue: { number: 10, title: 'Test', body: 'Test' },
+      comment: { id: 202, body: '/blocker check' },
+      repository: {
+        id: 123,
+        name: 'ruan-ai',
+        full_name: 'MinhWorker/ruan-ai',
+        owner: { login: 'MinhWorker' },
+      },
+      sender: { login: 'tester', id: 4 },
+    };
+    const sig = getSignature(payload);
+
+    return request(app.getHttpServer())
+      .post('/github/webhooks')
+      .set('x-hub-signature-256', sig)
+      .set('x-github-event', 'issue_comment')
+      .set('x-github-delivery', 'delivery-id-e2e-blocker')
+      .send(payload)
+      .expect(202)
+      .expect((res) => {
+        const body = res.body as Record<string, unknown>;
+        expect(body.status).toBe('accepted');
+      });
+  });
+
+  it('POST /github/webhooks accepts /stop command with 202', () => {
+    const payload = {
+      action: 'created',
+      issue: { number: 10, title: 'Test', body: 'Test' },
+      comment: { id: 203, body: '/stop now' },
+      repository: {
+        id: 123,
+        name: 'ruan-ai',
+        full_name: 'MinhWorker/ruan-ai',
+        owner: { login: 'MinhWorker' },
+      },
+      sender: { login: 'tester', id: 4 },
+    };
+    const sig = getSignature(payload);
+
+    return request(app.getHttpServer())
+      .post('/github/webhooks')
+      .set('x-hub-signature-256', sig)
+      .set('x-github-event', 'issue_comment')
+      .set('x-github-delivery', 'delivery-id-e2e-stop')
+      .send(payload)
+      .expect(202)
+      .expect((res) => {
+        const body = res.body as Record<string, unknown>;
+        expect(body.status).toBe('accepted');
+      });
+  });
 });

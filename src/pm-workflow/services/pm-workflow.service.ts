@@ -12,6 +12,18 @@ import {
   SplitWorkflowService,
   SplitWorkflowResult,
 } from './split-workflow.service';
+import {
+  StatusWorkflowService,
+  StatusWorkflowResult,
+} from './status-workflow.service';
+import {
+  BlockerWorkflowService,
+  BlockerWorkflowResult,
+} from './blocker-workflow.service';
+import {
+  StopWorkflowService,
+  StopWorkflowResult,
+} from './stop-workflow.service';
 import { GithubWriter } from '../../github-writer/interfaces/github-writer.interface';
 import { Job } from '../../job/interfaces/job.interface';
 
@@ -27,6 +39,9 @@ export class PmWorkflowService {
     private readonly triageWorkflowService: TriageWorkflowService,
     private readonly planWorkflowService: PlanWorkflowService,
     private readonly splitWorkflowService: SplitWorkflowService,
+    private readonly statusWorkflowService: StatusWorkflowService,
+    private readonly blockerWorkflowService: BlockerWorkflowService,
+    private readonly stopWorkflowService: StopWorkflowService,
     private readonly githubWriter: GithubWriter,
   ) {}
 
@@ -37,7 +52,13 @@ export class PmWorkflowService {
   async processJob(
     job: Job,
   ): Promise<
-    TriageWorkflowResult | PlanWorkflowResult | SplitWorkflowResult | null
+    | TriageWorkflowResult
+    | PlanWorkflowResult
+    | SplitWorkflowResult
+    | StatusWorkflowResult
+    | BlockerWorkflowResult
+    | StopWorkflowResult
+    | null
   > {
     this.logger.log(
       `Processing job ${job.jobId} with workflow type: ${job.workflowType}`,
@@ -65,11 +86,23 @@ export class PmWorkflowService {
       return this.splitWorkflowService.execute(job);
     }
 
+    if (job.workflowType === 'comment.status') {
+      return this.statusWorkflowService.execute(job);
+    }
+
+    if (job.workflowType === 'comment.blocker') {
+      return this.blockerWorkflowService.execute(job);
+    }
+
+    if (job.workflowType === 'comment.stop') {
+      return this.stopWorkflowService.execute(job);
+    }
+
     if (job.workflowType === 'comment.unsupported') {
       const owner = job.repositoryOwner;
       const repo = job.repositoryName;
       if (owner && repo) {
-        const commentBody = `The command you entered is not supported.\n\nSupported commands are:\n- \`/plan\`: Propose an implementation plan for this issue.\n- \`/split\`: Propose a coding-agent task split for this issue.`;
+        const commentBody = `The command you entered is not supported.\n\nSupported commands are:\n- \`/plan\`: Propose an implementation plan for this issue.\n- \`/split\`: Propose a coding-agent task split for this issue.\n- \`/status\`: Get current status of the issue.\n- \`/blocker\`: Analyze a reported blocker.\n- \`/stop\`: Pause AI management for this issue.`;
         const marker = `<!-- ruan-ai:workflow=unsupported-help issue=${job.issueNumber} -->`;
         await this.githubWriter.upsertComment(
           owner,

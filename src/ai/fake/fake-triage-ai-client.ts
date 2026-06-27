@@ -9,6 +9,10 @@ import {
   SplitOutput,
   CodingAgentTask,
 } from '../interfaces/split-output.interface';
+import { IssueStatusContext } from '../../context/interfaces/issue-status-context.interface';
+import { StatusOutput } from '../interfaces/status-output.interface';
+import { IssueBlockerContext } from '../../context/interfaces/issue-blocker-context.interface';
+import { BlockerOutput } from '../interfaces/blocker-output.interface';
 
 /**
  * Deterministic fake AI client for tests and local development.
@@ -334,6 +338,89 @@ export class FakeTriageAiClient extends AiClient {
     };
   }
 
+  async status(context: IssueStatusContext): Promise<StatusOutput> {
+    await Promise.resolve();
+    this.logger.log(
+      `[FAKE AI] Getting status for issue #${context.issue.number}: ${context.issue.title}`,
+    );
+
+    const isBlocked = context.issue.title.toLowerCase().includes('blocked');
+
+    const state = isBlocked ? 'blocked' : 'in_progress';
+    const completedWork = ['Setup repo'];
+    const openTasks = ['Finish feature'];
+    const blockers = isBlocked ? ['Missing API keys'] : [];
+    const nextAction = isBlocked ? 'Wait for keys' : 'Code feature';
+
+    const commentLines = [
+      `## Current Status for #${context.issue.number}`,
+      `**State:** ${state}`,
+      `**Next Action:** ${nextAction}`,
+    ];
+
+    return {
+      workflow: 'status',
+      state,
+      completedWork,
+      openTasks,
+      blockers,
+      nextAction,
+      commentBody: commentLines.join('\n'),
+      confidence: 'high',
+      assumptions: [],
+      evidence: [
+        {
+          source: 'issue_title',
+          content: context.issue.title,
+          type: 'observed',
+        },
+      ],
+    };
+  }
+
+  async blocker(context: IssueBlockerContext): Promise<BlockerOutput> {
+    await Promise.resolve();
+    this.logger.log(
+      `[FAKE AI] Analyzing blocker for issue #${context.issue.number}: ${context.issue.title}`,
+    );
+
+    const hasEvidence = context.blockerTriggeringText
+      .toLowerCase()
+      .includes('evidence');
+
+    const summary = 'Analysis of reported blocker';
+    const likelyCause = hasEvidence ? 'API is down' : null;
+    const nextProvingMethod = 'Check API status page';
+    const directHumanQuestions = hasEvidence ? [] : ['Did you check the API?'];
+
+    const commentLines = [
+      `## Blocker Analysis for #${context.issue.number}`,
+      `**Summary:** ${summary}`,
+    ];
+
+    if (likelyCause) {
+      commentLines.push(`**Likely Cause:** ${likelyCause}`);
+    }
+
+    return {
+      workflow: 'blocker',
+      summary,
+      likelyCause,
+      nextProvingMethod,
+      directHumanQuestions,
+      commentBody: commentLines.join('\n'),
+      confidence: hasEvidence ? 'high' : 'low',
+      assumptions: [],
+      evidence: [
+        {
+          source: 'triggering_comment',
+          content: context.blockerTriggeringText,
+          type: 'observed',
+        },
+      ],
+    };
+  }
+
   async repair(
     validationErrors: string[],
     contextSummary: string,
@@ -359,6 +446,31 @@ export class FakeTriageAiClient extends AiClient {
         verificationStrategy: 'Repaired verification strategy.',
         humanDecisions: [],
         commentBody: 'Repaired plan.',
+        confidence: 'high',
+        assumptions: [],
+        evidence: [],
+      };
+    } else if (contextSummary.includes('status')) {
+      return {
+        workflow: 'status',
+        state: 'in_progress',
+        completedWork: [],
+        openTasks: [],
+        blockers: [],
+        nextAction: 'Repaired action',
+        commentBody: 'Repaired status.',
+        confidence: 'high',
+        assumptions: [],
+        evidence: [],
+      };
+    } else if (contextSummary.includes('blocker')) {
+      return {
+        workflow: 'blocker',
+        summary: 'Repaired blocker summary',
+        likelyCause: null,
+        nextProvingMethod: 'Repaired method',
+        directHumanQuestions: [],
+        commentBody: 'Repaired blocker.',
         confidence: 'high',
         assumptions: [],
         evidence: [],

@@ -4,6 +4,10 @@ import { IssuePlanContext } from '../../context/interfaces/issue-plan-context.in
 import { PlanOutput } from './plan-output.interface';
 import { IssueSplitContext } from '../../context/interfaces/issue-split-context.interface';
 import { SplitOutput } from './split-output.interface';
+import { IssueStatusContext } from '../../context/interfaces/issue-status-context.interface';
+import { StatusOutput } from './status-output.interface';
+import { IssueBlockerContext } from '../../context/interfaces/issue-blocker-context.interface';
+import { BlockerOutput } from './blocker-output.interface';
 
 /**
  * Abstract AI client interface for triage, planning, and task splitting operations.
@@ -25,6 +29,16 @@ export abstract class AiClient {
    * Perform task splitting analysis and return structured output.
    */
   abstract split(context: IssueSplitContext): Promise<SplitOutput>;
+
+  /**
+   * Perform status analysis and return structured output.
+   */
+  abstract status(context: IssueStatusContext): Promise<StatusOutput>;
+
+  /**
+   * Perform blocker analysis and return structured output.
+   */
+  abstract blocker(context: IssueBlockerContext): Promise<BlockerOutput>;
 
   /**
    * Request repair of invalid schema output using validation errors.

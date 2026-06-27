@@ -2,12 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TriageWorkflowService } from './triage-workflow.service';
 import { PlanWorkflowService } from './plan-workflow.service';
 import { SplitWorkflowService } from './split-workflow.service';
+import { StatusWorkflowService } from './status-workflow.service';
+import { BlockerWorkflowService } from './blocker-workflow.service';
 import { JobService } from '../../job/job.service';
+import { FollowUpService } from '../../job/follow-up.service';
+import { FollowUpRecordRepository } from '../../job/follow-up-record.repository';
+import { InMemoryFollowUpRecordRepository } from '../../job/in-memory-follow-up-record.repository';
 import { JobRepository } from '../../job/job.repository';
 import { InMemoryJobRepository } from '../../job/in-memory-job.repository';
 import { IssueTriageContextBuilder } from '../../context/builders/issue-triage-context.builder';
 import { IssuePlanContextBuilder } from '../../context/builders/issue-plan-context.builder';
 import { IssueSplitContextBuilder } from '../../context/builders/issue-split-context.builder';
+import { IssueStatusContextBuilder } from '../../context/builders/issue-status-context.builder';
+import { IssueBlockerContextBuilder } from '../../context/builders/issue-blocker-context.builder';
 import { AiClient } from '../../ai/interfaces/ai-client.interface';
 import { TriagePolicyService } from '../../policy/services/triage-policy.service';
 import { GithubWriter } from '../../github-writer/interfaces/github-writer.interface';
@@ -446,6 +453,125 @@ describe('Prompt Injection Defense', () => {
       deliveryId: 'dlv-injection-split',
       workflowType: 'comment.split',
       issueNumber: 105,
+      repositoryOwner: 'owner',
+      repositoryName: 'repo',
+      senderLogin: 'attacker',
+    });
+
+    const result = await svc.execute(job);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('rejected by policy');
+  });
+
+  it('should reject status comment if compromised AI includes unsafe HTML script injection', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        StatusWorkflowService,
+        JobService,
+        { provide: JobRepository, useClass: InMemoryJobRepository },
+        FollowUpService,
+        {
+          provide: FollowUpRecordRepository,
+          useClass: InMemoryFollowUpRecordRepository,
+        },
+        IssueStatusContextBuilder,
+        { provide: GithubClient, useClass: FakeGithubClient },
+        {
+          provide: AiClient,
+          useValue: {
+            status: () =>
+              Promise.resolve({
+                workflow: 'status',
+                state: 'in_progress',
+                completedWork: [],
+                openTasks: [],
+                blockers: [],
+                nextAction: 'none',
+                commentBody: 'Status update <script>alert("hacked")</script>',
+                confidence: 'high',
+                assumptions: [],
+                evidence: [],
+              }),
+          },
+        },
+        TriagePolicyService,
+        { provide: GithubWriter, useClass: FakeGithubWriter },
+      ],
+    }).compile();
+
+    const gc = module.get<GithubClient>(GithubClient) as FakeGithubClient;
+    const js = module.get<JobService>(JobService);
+    const svc = module.get(StatusWorkflowService);
+
+    gc.setIssue('owner', 'repo', {
+      number: 106,
+      title: 'Status injection test',
+      body: 'Do something bad.',
+      author: 'attacker',
+      createdAt: '2026-01-01T00:00:00Z',
+      labels: [],
+    });
+
+    const job = await js.createJob({
+      deliveryId: 'dlv-injection-status',
+      workflowType: 'comment.status',
+      issueNumber: 106,
+      repositoryOwner: 'owner',
+      repositoryName: 'repo',
+      senderLogin: 'attacker',
+    });
+
+    const result = await svc.execute(job);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('rejected by policy');
+  });
+
+  it('should reject blocker comment if compromised AI includes unsafe HTML script injection', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BlockerWorkflowService,
+        JobService,
+        { provide: JobRepository, useClass: InMemoryJobRepository },
+        IssueBlockerContextBuilder,
+        { provide: GithubClient, useClass: FakeGithubClient },
+        {
+          provide: AiClient,
+          useValue: {
+            blocker: () =>
+              Promise.resolve({
+                workflow: 'blocker',
+                summary: 'blocker sum',
+                nextProvingMethod: 'method',
+                directHumanQuestions: [],
+                commentBody: 'Blocker update <script>alert("hacked")</script>',
+                confidence: 'high',
+                assumptions: [],
+                evidence: [],
+              }),
+          },
+        },
+        TriagePolicyService,
+        { provide: GithubWriter, useClass: FakeGithubWriter },
+      ],
+    }).compile();
+
+    const gc = module.get<GithubClient>(GithubClient) as FakeGithubClient;
+    const js = module.get<JobService>(JobService);
+    const svc = module.get(BlockerWorkflowService);
+
+    gc.setIssue('owner', 'repo', {
+      number: 107,
+      title: 'Blocker injection test',
+      body: 'Do something bad.',
+      author: 'attacker',
+      createdAt: '2026-01-01T00:00:00Z',
+      labels: [],
+    });
+
+    const job = await js.createJob({
+      deliveryId: 'dlv-injection-blocker',
+      workflowType: 'comment.blocker',
+      issueNumber: 107,
       repositoryOwner: 'owner',
       repositoryName: 'repo',
       senderLogin: 'attacker',

@@ -192,6 +192,78 @@ describe('WebhookController', () => {
       expect(job?.workflowType).toBe('comment.split');
     });
 
+    it('should create a comment.status job when /status command is present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-status',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 106, body: '/status now' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+      await controller.handleWebhook(headers, body);
+      const job = await jobService.getJobByDeliveryId('dlv-status');
+      expect(job?.workflowType).toBe('comment.status');
+      expect(job?.repositoryOwner).toBe('MinhWorker');
+      expect(job?.repositoryName).toBe('ruan-ai');
+      expect(job?.commentId).toBe(106);
+      expect(job?.commentBody).toBe('/status now');
+    });
+
+    it('should create a comment.blocker job when /blocker command is present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-blocker',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 107, body: '/blocker check' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+      await controller.handleWebhook(headers, body);
+      const job = await jobService.getJobByDeliveryId('dlv-blocker');
+      expect(job?.workflowType).toBe('comment.blocker');
+      expect(job?.commentId).toBe(107);
+      expect(job?.commentBody).toBe('/blocker check');
+    });
+
+    it('should create a comment.stop job when /stop command is present', async () => {
+      const headers = {
+        'x-github-delivery': 'dlv-stop',
+        'x-github-event': 'issue_comment',
+      };
+      const body = {
+        action: 'created',
+        issue: { number: 7 },
+        comment: { id: 108, body: '/stop now' },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
+      };
+      await controller.handleWebhook(headers, body);
+      const job = await jobService.getJobByDeliveryId('dlv-stop');
+      expect(job?.workflowType).toBe('comment.stop');
+    });
+
     it('should return ignored status when comment has no commands', async () => {
       const headers = {
         'x-github-delivery': 'dlv-7',
@@ -222,7 +294,7 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 105, body: 'Call /status or /deploy.' },
+        comment: { id: 105, body: 'Call /magic or /deploy.' },
         repository: {
           id: 777,
           name: 'ruan-ai',

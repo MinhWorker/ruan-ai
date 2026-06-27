@@ -15,6 +15,8 @@ export class JobService {
     repositoryOwner?: string;
     repositoryName?: string;
     senderLogin?: string;
+    commentId?: number;
+    commentBody?: string;
     installationId?: number;
   }): Promise<Job> {
     const existing = await this.jobRepository.findByDeliveryId(
@@ -37,6 +39,8 @@ export class JobService {
       repositoryOwner: params.repositoryOwner,
       repositoryName: params.repositoryName,
       senderLogin: params.senderLogin,
+      commentId: params.commentId,
+      commentBody: params.commentBody,
       installationId: params.installationId,
     };
 
