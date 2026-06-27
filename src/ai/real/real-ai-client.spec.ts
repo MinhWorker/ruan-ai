@@ -182,7 +182,9 @@ describe('RealAiClient', () => {
       const promptText = call[0].contents as string;
 
       expect(promptText).toContain('"status"');
-      expect(promptText).toContain('repairing a failed "status" workflow');
+      expect(promptText).toContain('## Target Workflow');
+      expect(promptText).toContain('status');
+      expect(promptText).toContain('---BEGIN UNTRUSTED CONTEXT SUMMARY---');
       expect(promptText).toContain(getSchemaContract('status'));
     });
 

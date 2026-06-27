@@ -20,94 +20,71 @@ export function getSchemaContract(workflow: string): string {
 }
 
 const SCHEMA_CONTRACTS: Record<string, string> = {
-  triage: `Your output MUST be a JSON object with exactly these fields (no extra fields allowed):
-{
-  "workflow": "triage",                       // REQUIRED: must be the literal string "triage"
-  "summary": "<string>",                      // REQUIRED: non-empty summary of the triage analysis
-  "riskLevel": "low" | "medium" | "high",     // REQUIRED: one of these three values
-  "suggestedLabels": ["<string>", ...],       // REQUIRED: array of strings (can be empty)
-  "missingInformation": ["<string>", ...],    // REQUIRED: array of strings (can be empty)
-  "recommendedNextCommand": "/plan" | "human_clarification",  // REQUIRED: one of these two values
-  "commentBody": "<string>",                  // REQUIRED: non-empty markdown comment body
-  "confidence": "low" | "medium" | "high",    // REQUIRED: one of these three values
-  "assumptions": ["<string>", ...],           // REQUIRED: array of strings (can be empty)
-  "evidence": [                               // REQUIRED: array of evidence objects (can be empty)
-    { "source": "<string>", "content": "<string>" }
-  ]
-}`,
+  triage: `Return a JSON object with exactly these fields and no extra fields.
+- "workflow": "triage"
+- "summary": non-empty string
+- "riskLevel": one of "low", "medium", "high"
+- "suggestedLabels": array of strings; use [] when no existing label clearly applies
+- "missingInformation": array of strings; use [] when nothing is missing
+- "recommendedNextCommand": one of "/plan", "human_clarification"
+- "commentBody": non-empty markdown string for a public GitHub issue comment
+- "confidence": one of "low", "medium", "high"
+- "assumptions": array of strings; use [] when none
+- "evidence": array of objects with "source" string and "content" string`,
 
-  plan: `Your output MUST be a JSON object with exactly these fields (no extra fields allowed):
-{
-  "workflow": "plan",                         // REQUIRED: must be the literal string "plan"
-  "problemStatement": "<string>",             // REQUIRED: non-empty problem description
-  "scope": ["<string>", ...],                // REQUIRED: array of strings
-  "nonScope": ["<string>", ...],             // REQUIRED: array of strings
-  "dependencies": ["<string>", ...],         // REQUIRED: array of strings
-  "taskSequence": ["<string>", ...],         // REQUIRED: array of strings
-  "acceptanceCriteria": ["<string>", ...],   // REQUIRED: array of strings
-  "verificationStrategy": "<string>",         // REQUIRED: non-empty string
-  "humanDecisions": ["<string>", ...],       // REQUIRED: array of strings
-  "commentBody": "<string>",                  // REQUIRED: non-empty markdown comment body
-  "confidence": "low" | "medium" | "high",    // REQUIRED: one of these three values
-  "assumptions": ["<string>", ...],           // REQUIRED: array of strings (can be empty)
-  "evidence": [                               // REQUIRED: array of evidence objects (can be empty)
-    { "source": "<string>", "content": "<string>" }
-  ]
-}`,
+  plan: `Return a JSON object with exactly these fields and no extra fields.
+- "workflow": "plan"
+- "problemStatement": non-empty string
+- "scope": array of strings
+- "nonScope": array of strings
+- "dependencies": array of strings
+- "taskSequence": array of strings in dependency order
+- "acceptanceCriteria": array of strings
+- "verificationStrategy": non-empty string
+- "humanDecisions": array of strings; use [] when no human decision is required
+- "commentBody": non-empty markdown string for a public GitHub issue comment
+- "confidence": one of "low", "medium", "high"
+- "assumptions": array of strings; use [] when none
+- "evidence": array of objects with "source" string and "content" string`,
 
-  split: `Your output MUST be a JSON object with exactly these fields (no extra fields allowed):
-{
-  "workflow": "split",                        // REQUIRED: must be the literal string "split"
-  "tasks": [                                  // REQUIRED: array of task objects
-    {
-      "id": "<string>",                       // REQUIRED: non-empty unique task ID
-      "title": "<string>",                    // REQUIRED: non-empty task title
-      "objective": "<string>",                // REQUIRED: non-empty objective
-      "filesToInspect": ["<string>", ...],   // REQUIRED: array of file paths
-      "allowedOperations": ["<string>", ...], // REQUIRED: array of allowed ops
-      "dependencies": ["<string>", ...],     // REQUIRED: array of task IDs this depends on (must reference IDs in this list)
-      "parallelizationGuidance": "<string>",  // REQUIRED: guidance string
-      "verificationCommands": ["<string>", ...], // REQUIRED: array of commands
-      "completionEvidence": "<string>",       // REQUIRED: evidence string
-      "ownerType": "human" | "coding_agent" | "blocked"  // REQUIRED: one of these three values
-    }
-  ],
-  "commentBody": "<string>",                  // REQUIRED: non-empty markdown comment body
-  "confidence": "low" | "medium" | "high",    // REQUIRED: one of these three values
-  "assumptions": ["<string>", ...],           // REQUIRED: array of strings (can be empty)
-  "evidence": [                               // REQUIRED: array of evidence objects (can be empty)
-    { "source": "<string>", "content": "<string>" }
-  ]
-}`,
+  split: `Return a JSON object with exactly these fields and no extra fields.
+- "workflow": "split"
+- "tasks": array of task objects. Each task object must include:
+  - "id": non-empty unique string
+  - "title": non-empty string
+  - "objective": non-empty string
+  - "filesToInspect": array of strings
+  - "allowedOperations": array of strings
+  - "dependencies": array of task id strings that reference existing task IDs in this same output
+  - "parallelizationGuidance": string
+  - "verificationCommands": array of strings
+  - "completionEvidence": string
+  - "ownerType": one of "human", "coding_agent", "blocked"
+- "commentBody": non-empty markdown string for a public GitHub issue comment
+- "confidence": one of "low", "medium", "high"
+- "assumptions": array of strings; use [] when none
+- "evidence": array of objects with "source" string and "content" string`,
 
-  status: `Your output MUST be a JSON object with exactly these fields (no extra fields allowed):
-{
-  "workflow": "status",                       // REQUIRED: must be the literal string "status"
-  "state": "not_started" | "ready" | "in_progress" | "blocked" | "needs_review" | "done" | "paused",  // REQUIRED
-  "completedWork": ["<string>", ...],        // REQUIRED: array of strings (can be empty)
-  "openTasks": ["<string>", ...],            // REQUIRED: array of strings (can be empty)
-  "blockers": ["<string>", ...],             // REQUIRED: array of strings (can be empty)
-  "nextAction": "<string>",                   // REQUIRED: string describing next action
-  "commentBody": "<string>",                  // REQUIRED: non-empty markdown comment body
-  "confidence": "low" | "medium" | "high",    // REQUIRED: one of these three values
-  "assumptions": ["<string>", ...],           // REQUIRED: array of strings (can be empty)
-  "evidence": [                               // REQUIRED: array of evidence objects (can be empty)
-    { "source": "<string>", "content": "<string>", "type": "observed" | "inferred" }
-  ]
-}`,
+  status: `Return a JSON object with exactly these fields and no extra fields.
+- "workflow": "status"
+- "state": one of "not_started", "ready", "in_progress", "blocked", "needs_review", "done", "paused"
+- "completedWork": array of strings; use [] when none is evident
+- "openTasks": array of strings; use [] when none is evident
+- "blockers": array of strings; use [] when none is evident
+- "nextAction": string
+- "commentBody": non-empty markdown string for a public GitHub issue comment
+- "confidence": one of "low", "medium", "high"
+- "assumptions": array of strings; use [] when none
+- "evidence": array of objects with "source" string, "content" string, and "type" set to "observed" or "inferred"`,
 
-  blocker: `Your output MUST be a JSON object with exactly these fields (no extra fields allowed):
-{
-  "workflow": "blocker",                      // REQUIRED: must be the literal string "blocker"
-  "summary": "<string>",                      // REQUIRED: non-empty blocker summary
-  "likelyCause": "<string>" | null,           // OPTIONAL: string or null
-  "nextProvingMethod": "<string>",            // REQUIRED: string describing next proving method
-  "directHumanQuestions": ["<string>", ...], // REQUIRED: array of strings
-  "commentBody": "<string>",                  // REQUIRED: non-empty markdown comment body
-  "confidence": "low" | "medium" | "high",    // REQUIRED: one of these three values
-  "assumptions": ["<string>", ...],           // REQUIRED: array of strings (can be empty)
-  "evidence": [                               // REQUIRED: array of evidence objects (can be empty)
-    { "source": "<string>", "content": "<string>", "type": "observed" | "inferred" }
-  ]
-}`,
+  blocker: `Return a JSON object with exactly these fields and no extra fields.
+- "workflow": "blocker"
+- "summary": string
+- "likelyCause": string or null
+- "nextProvingMethod": string
+- "directHumanQuestions": array of strings; use [] when no human question is required
+- "commentBody": non-empty markdown string for a public GitHub issue comment
+- "confidence": one of "low", "medium", "high"
+- "assumptions": array of strings; use [] when none
+- "evidence": array of objects with "source" string, "content" string, and "type" set to "observed" or "inferred"`,
 };
