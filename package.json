@@ -20,9 +20,13 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@google/genai": "^2.10.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@octokit/auth-app": "^8.2.0",
+    "dotenv": "^17.4.2",
+    "octokit": "^5.0.5",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

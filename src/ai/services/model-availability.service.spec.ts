@@ -1,41 +1,73 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ModelAvailabilityService } from './model-availability.service';
+import { AiClient } from '../interfaces/ai-client.interface';
+import { ConfigService } from '../../config/config.service';
 
 describe('ModelAvailabilityService', () => {
   let service: ModelAvailabilityService;
 
+  const mockAiClient = {
+    checkModel: jest.fn(),
+  };
+
+  const mockConfigService = {
+    primaryModelId: 'primary-model',
+    fallbackModelId: 'fallback-model',
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ModelAvailabilityService],
+      providers: [
+        ModelAvailabilityService,
+        { provide: AiClient, useValue: mockAiClient },
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
     }).compile();
 
     service = module.get<ModelAvailabilityService>(ModelAvailabilityService);
+    aiClient = module.get<AiClient>(AiClient);
   });
 
-  it('should be available by default in fake mode', () => {
-    const status = service.validate();
+  it('should be available if primary model is available', async () => {
+    mockAiClient.checkModel.mockResolvedValueOnce(true);
+
+    const status = await service.validate();
     expect(status.available).toBe(true);
     expect(status.status).toBe('available');
-    expect(status.modelId).toBe('fake-model-local');
+    expect(status.modelId).toBe('primary-model');
+    expect(mockAiClient.checkModel).toHaveBeenCalledWith('primary-model');
   });
 
-  it('should return unavailable status when setUnavailableState is called', () => {
+  it('should be degraded if primary is unavailable but fallback is available', async () => {
+    mockAiClient.checkModel
+      .mockResolvedValueOnce(false) // primary
+      .mockResolvedValueOnce(true); // fallback
+
+    const status = await service.validate();
+    expect(status.available).toBe(true);
+    expect(status.status).toBe('degraded');
+    expect(status.modelId).toBe('fallback-model');
+  });
+
+  it('should be unavailable if both models are unavailable', async () => {
+    mockAiClient.checkModel
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false);
+
+    const status = await service.validate();
+    expect(status.available).toBe(false);
+    expect(status.status).toBe('unavailable');
+    expect(status.modelId).toBe('fallback-model');
+  });
+
+  it('should return unavailable status when setUnavailableState is called', async () => {
     service.setUnavailableState(true, 'Overloaded');
-    const status = service.validate();
+    const status = await service.validate();
     expect(status.available).toBe(false);
     expect(status.status).toBe('unavailable');
     expect(status.reason).toBe('Overloaded');
-    expect(status.fallbackModelId).toBe('fake-model-local-fallback');
-  });
-
-  it('should expose configured fake model ids', () => {
-    service.setConfiguredModelId('fake-primary');
-    service.setFallbackModelId('fake-fallback');
-    service.setUnavailableState(true);
-
-    const status = service.validate();
-
-    expect(status.modelId).toBe('fake-primary');
-    expect(status.fallbackModelId).toBe('fake-fallback');
+    expect(status.fallbackModelId).toBe('fallback-model');
   });
 });

@@ -55,8 +55,8 @@ export class OpsController {
   }
 
   @Get('model-availability')
-  getModelAvailability() {
-    return this.modelAvailability.validate();
+  async getModelAvailability() {
+    return await this.modelAvailability.validate();
   }
 
   @Get('audit-records')

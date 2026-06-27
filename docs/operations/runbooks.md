@@ -7,6 +7,21 @@
 2. Run unit tests: `npx jest`
 3. Run e2e tests: `$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run test:e2e`
 4. Send a test webhook payload to `http://localhost:3000/webhook`.
+5. **Live Verification (Optional):** To verify real connectivity to GitHub and Google AI Studio:
+   ```powershell
+   $env:RUN_LIVE_INTEGRATION="true"
+   $env:PROVIDER_MODE="real"
+   npx jest test/live-integration.e2e-spec.ts
+   ```
+6. **Live Write Verification (Optional, mutates GitHub):** Use only a disposable issue and existing test label.
+   ```powershell
+   $env:RUN_LIVE_INTEGRATION="true"
+   $env:RUN_LIVE_WRITE_TESTS="true"
+   $env:PROVIDER_MODE="real"
+   $env:GITHUB_LIVE_ISSUE_NUMBER="123"
+   $env:GITHUB_LIVE_LABEL="ruan-ai-test"
+   npx jest test/live-integration.e2e-spec.ts
+   ```
 
 ## 2. Webhook Signature Failures
 **Scenario:** Webhook payloads from GitHub are being rejected with 401 Unauthorized.
@@ -45,9 +60,16 @@
 1. To resume a paused issue, a human must manually triage or instruct the AI to resume via a specific workflow command (future scope). For now, restart the webhook event.
 2. For stuck follow-ups, inspect the in-memory `followUpRecords` (or DB in future). Ensure the scheduler is running.
 
-## 7. Preparing Real GitHub App and Google AI Studio Credentials
-**Scenario:** Transitioning from Fake modes to real integrations.
+## 7. App Authentication Failures (GitHub)
+**Scenario:** App fails to interact with GitHub APIs (401 Unauthorized or 403 Forbidden).
 **Runbook:**
-1. **GitHub App:** Create a new GitHub App. Generate a private key. Set `GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `GITHUB_PRIVATE_KEY` environment variables.
-2. **Google AI Studio:** Obtain an API key from Google AI Studio. Set `GEMINI_API_KEY` environment variable.
-3. Replace `FakeGithubWriterClient` and `FakeTriageAiClient` in the modules with their real HTTP client implementations.
+1. Check `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` validity.
+2. Ensure the GitHub App is actually installed in the target repository (`owner/repo`).
+3. If using `GITHUB_INSTALLATION_ID` override, ensure it matches the actual installation ID for the repository.
+
+## 8. Provider Mode Configuration Errors
+**Scenario:** App crashes on startup complaining about missing configuration.
+**Runbook:**
+1. Check `PROVIDER_MODE` environment variable.
+2. If `PROVIDER_MODE=real`, ensure all required real-mode configuration (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GOOGLE_AI_STUDIO_API_KEY`) is set.
+3. Review `.env` and compare with `.env.example`.

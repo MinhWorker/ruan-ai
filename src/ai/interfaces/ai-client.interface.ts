@@ -47,4 +47,9 @@ export abstract class AiClient {
     validationErrors: string[],
     contextSummary: string,
   ): Promise<any>;
+
+  /**
+   * Check if a model is available.
+   */
+  abstract checkModel(modelId: string): Promise<boolean>;
 }

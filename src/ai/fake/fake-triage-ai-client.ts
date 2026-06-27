@@ -454,10 +454,6 @@ export class FakeTriageAiClient extends AiClient {
     contextSummary: string,
   ): Promise<any> {
     await Promise.resolve();
-    this.logger.log(
-      `[FAKE AI] Repairing invalid output for summary: ${contextSummary}`,
-    );
-
     if (this.repairBehavior) {
       return this.repairBehavior(validationErrors, contextSummary);
     }
@@ -526,5 +522,10 @@ export class FakeTriageAiClient extends AiClient {
         evidence: [],
       };
     }
+  }
+
+  async checkModel(modelId: string): Promise<boolean> {
+    await Promise.resolve();
+    return !modelId.startsWith('unavailable');
   }
 }

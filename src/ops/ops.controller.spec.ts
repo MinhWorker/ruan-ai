@@ -4,6 +4,8 @@ import { TelemetryService } from '../telemetry/services/telemetry.service';
 import { RateLimitTrackerService } from '../telemetry/services/rate-limit-tracker.service';
 import { ModelAvailabilityService } from '../ai/services/model-availability.service';
 import { TelemetryRepository } from '../telemetry/repositories/telemetry.repository';
+import { AiClient } from '../ai/interfaces/ai-client.interface';
+import { ConfigService } from '../config/config.service';
 
 describe('OpsController', () => {
   let controller: OpsController;
@@ -17,6 +19,14 @@ describe('OpsController', () => {
         TelemetryRepository,
         RateLimitTrackerService,
         ModelAvailabilityService,
+        {
+          provide: AiClient,
+          useValue: { checkModel: jest.fn().mockResolvedValue(true) },
+        },
+        {
+          provide: ConfigService,
+          useValue: { primaryModelId: 'primary', fallbackModelId: 'fallback' },
+        },
       ],
     }).compile();
 
@@ -40,8 +50,8 @@ describe('OpsController', () => {
     expect(snapshot.aiModel.requestCount).toBe(1);
   });
 
-  it('should return model availability', () => {
-    const status = controller.getModelAvailability();
+  it('should return model availability', async () => {
+    const status = await controller.getModelAvailability();
     expect(status.available).toBe(true);
   });
 });
