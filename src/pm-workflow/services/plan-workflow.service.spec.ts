@@ -115,9 +115,10 @@ describe('PlanWorkflowService', () => {
       } as PlanOutput); // problemStatement is empty -> invalid!
     });
 
-    aiClient.setRepairBehavior((errors, summary) => {
+    aiClient.setRepairBehavior((errors, summary, targetWorkflow) => {
       expect(errors).toContain('problemStatement must be a non-empty string');
       expect(summary).toContain('Planning workflow for repository owner/repo');
+      expect(targetWorkflow).toBe('plan');
       return {
         workflow: 'plan',
         problemStatement: 'Repaired problem statement.',

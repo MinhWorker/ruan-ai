@@ -9,6 +9,7 @@ export interface EnvironmentConfig {
   PRIMARY_MODEL_ID?: string;
   FALLBACK_MODEL_ID?: string;
   JOB_EXECUTION_MODE: 'inline' | 'queued';
+  AI_MODEL_TIMEOUT_MS: number;
 }
 
 export function validateConfig(
@@ -47,6 +48,14 @@ export function validateConfig(
   const jobExecutionMode =
     jobExecutionModeInput === 'inline' ? 'inline' : 'queued';
 
+  const aiModelTimeoutStr = env.AI_MODEL_TIMEOUT_MS ?? '120000';
+  const aiModelTimeoutMs = parseInt(aiModelTimeoutStr, 10);
+  if (isNaN(aiModelTimeoutMs) || aiModelTimeoutMs < 5000) {
+    errors.push(
+      `AI_MODEL_TIMEOUT_MS must be a number >= 5000, got: ${aiModelTimeoutStr}`,
+    );
+  }
+
   if (providerMode === 'real') {
     if (!env.GITHUB_APP_ID)
       errors.push('GITHUB_APP_ID is required in real mode.');
@@ -75,5 +84,6 @@ export function validateConfig(
     PRIMARY_MODEL_ID: env.PRIMARY_MODEL_ID,
     FALLBACK_MODEL_ID: env.FALLBACK_MODEL_ID,
     JOB_EXECUTION_MODE: jobExecutionMode,
+    AI_MODEL_TIMEOUT_MS: aiModelTimeoutMs,
   };
 }

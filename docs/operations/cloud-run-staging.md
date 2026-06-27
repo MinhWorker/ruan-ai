@@ -94,7 +94,7 @@ gcloud run deploy ruan-ai-staging `
   --cpu=1 `
   --min-instances=0 `
   --max-instances=2 `
-  --timeout=60
+  --timeout=300
 ```
 
 ## Update Cloud Run to Real Provider Pilot
@@ -105,7 +105,7 @@ Use this after the GitHub App, private key, webhook secret, Google AI Studio key
 gcloud run services update ruan-ai-staging `
   --project=gen-lang-client-0591588109 `
   --region=us-central1 `
-  --set-env-vars=PROVIDER_MODE=real,GITHUB_LIVE_OWNER=MinhWorker,GITHUB_LIVE_REPO=ruan-ai,PRIMARY_MODEL_ID=gemma-4-31b-it,FALLBACK_MODEL_ID=gemma-4-26b-a4b-it,JOB_EXECUTION_MODE=inline `
+  --set-env-vars=PROVIDER_MODE=real,GITHUB_LIVE_OWNER=MinhWorker,GITHUB_LIVE_REPO=ruan-ai,PRIMARY_MODEL_ID=gemma-4-31b-it,FALLBACK_MODEL_ID=gemma-4-26b-a4b-it,JOB_EXECUTION_MODE=inline,AI_MODEL_TIMEOUT_MS=120000 `
   --update-secrets=GITHUB_WEBHOOK_SECRET=GITHUB_WEBHOOK_SECRET:latest,GITHUB_APP_ID=GITHUB_APP_ID:latest,GITHUB_APP_PRIVATE_KEY=GITHUB_APP_PRIVATE_KEY:latest,GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest
 ```
 

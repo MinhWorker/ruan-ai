@@ -42,10 +42,14 @@ export abstract class AiClient {
 
   /**
    * Request repair of invalid schema output using validation errors.
+   * @param validationErrors - The schema validation errors from the first attempt.
+   * @param contextSummary - A brief description of the workflow context.
+   * @param targetWorkflow - The workflow name whose schema the repair must satisfy.
    */
   abstract repair(
     validationErrors: string[],
     contextSummary: string,
+    targetWorkflow: string,
   ): Promise<any>;
 
   /**
