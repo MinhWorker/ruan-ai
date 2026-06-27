@@ -1,0 +1,41 @@
+# Dependencies (re-installed in container)
+node_modules
+
+# Build output (rebuilt in container)
+dist
+
+# Tests
+test
+coverage
+.nyc_output
+
+# Documentation and research
+docs
+.research
+README.md
+
+# Environment files (secrets must not be baked into images)
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# IDE / editor
+.idea
+.vscode
+*.sublime-workspace
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Docker compose files
+docker-compose*.yml
