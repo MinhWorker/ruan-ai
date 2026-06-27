@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AiClient } from './interfaces/ai-client.interface';
 import { FakeTriageAiClient } from './fake/fake-triage-ai-client';
+import { ModelAvailabilityService } from './services/model-availability.service';
 
 @Module({
   providers: [
@@ -8,7 +9,8 @@ import { FakeTriageAiClient } from './fake/fake-triage-ai-client';
       provide: AiClient,
       useClass: FakeTriageAiClient,
     },
+    ModelAvailabilityService,
   ],
-  exports: [AiClient],
+  exports: [AiClient, ModelAvailabilityService],
 })
 export class AiModule {}

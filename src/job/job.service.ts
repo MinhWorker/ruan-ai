@@ -1,11 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { Job, JobStatus } from './interfaces/job.interface';
 import { JobRepository } from './job.repository';
 import * as crypto from 'crypto';
+import { TelemetryService } from '../telemetry/services/telemetry.service';
 
 @Injectable()
 export class JobService {
-  constructor(private readonly jobRepository: JobRepository) {}
+  constructor(
+    private readonly jobRepository: JobRepository,
+    @Optional() private readonly telemetryService?: TelemetryService,
+  ) {}
 
   async createJob(params: {
     deliveryId: string;
@@ -44,7 +48,25 @@ export class JobService {
       installationId: params.installationId,
     };
 
-    return this.jobRepository.save(job);
+    const savedJob = await this.jobRepository.save(job);
+
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type: 'job_lifecycle',
+        severity: 'info',
+        jobId: savedJob.jobId,
+        message: `Job created with status ${savedJob.status}`,
+        repositoryOwner: savedJob.repositoryOwner,
+        repositoryName: savedJob.repositoryName,
+        issueNumber: savedJob.issueNumber,
+        metadata: {
+          deliveryId: savedJob.deliveryId,
+          workflowType: savedJob.workflowType,
+        },
+      });
+    }
+
+    return savedJob;
   }
 
   async getJobByDeliveryId(deliveryId: string): Promise<Job | null> {
@@ -57,7 +79,22 @@ export class JobService {
       throw new Error(`Job not found: ${jobId}`);
     }
     job.status = status;
-    return this.jobRepository.save(job);
+    const savedJob = await this.jobRepository.save(job);
+
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type: 'job_lifecycle',
+        severity: status === 'failed' ? 'error' : 'info',
+        jobId: savedJob.jobId,
+        message: `Job status updated to ${status}`,
+        repositoryOwner: savedJob.repositoryOwner,
+        repositoryName: savedJob.repositoryName,
+        issueNumber: savedJob.issueNumber,
+        metadata: { newStatus: status },
+      });
+    }
+
+    return savedJob;
   }
 
   async incrementAttempts(jobId: string): Promise<Job> {

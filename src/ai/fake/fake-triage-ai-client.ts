@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { AiClient } from '../interfaces/ai-client.interface';
 import { TriageOutput } from '../interfaces/triage-output.interface';
 import { IssueTriageContext } from '../../context/interfaces/issue-triage-context.interface';
@@ -13,6 +13,8 @@ import { IssueStatusContext } from '../../context/interfaces/issue-status-contex
 import { StatusOutput } from '../interfaces/status-output.interface';
 import { IssueBlockerContext } from '../../context/interfaces/issue-blocker-context.interface';
 import { BlockerOutput } from '../interfaces/blocker-output.interface';
+import { TelemetryService } from '../../telemetry/services/telemetry.service';
+import { RateLimitTrackerService } from '../../telemetry/services/rate-limit-tracker.service';
 
 /**
  * Deterministic fake AI client for tests and local development.
@@ -30,8 +32,30 @@ import { BlockerOutput } from '../interfaces/blocker-output.interface';
 export class FakeTriageAiClient extends AiClient {
   private readonly logger = new Logger(FakeTriageAiClient.name);
 
+  constructor(
+    @Optional() private readonly telemetryService?: TelemetryService,
+    @Optional() private readonly rateLimitTracker?: RateLimitTrackerService,
+  ) {
+    super();
+  }
+
+  private recordModelCall(workflow: string) {
+    if (this.rateLimitTracker) {
+      this.rateLimitTracker.recordAiRequest(100); // Fake token estimate
+    }
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type: 'model_call',
+        severity: 'info',
+        message: `AI Model called for workflow: ${workflow}`,
+        metadata: { workflow },
+      });
+    }
+  }
+
   async triage(context: IssueTriageContext): Promise<TriageOutput> {
     await Promise.resolve();
+    this.recordModelCall('triage');
     this.logger.log(
       `[FAKE AI] Triaging issue #${context.issue.number}: ${context.issue.title}`,
     );
@@ -138,6 +162,7 @@ export class FakeTriageAiClient extends AiClient {
 
   async plan(context: IssuePlanContext): Promise<PlanOutput> {
     await Promise.resolve();
+    this.recordModelCall('plan');
     this.logger.log(
       `[FAKE AI] Planning for issue #${context.issue.number}: ${context.issue.title}`,
     );
@@ -219,6 +244,7 @@ export class FakeTriageAiClient extends AiClient {
 
   async split(context: IssueSplitContext): Promise<SplitOutput> {
     await Promise.resolve();
+    this.recordModelCall('split');
     this.logger.log(
       `[FAKE AI] Splitting tasks for issue #${context.issue.number}: ${context.issue.title}`,
     );
@@ -340,6 +366,7 @@ export class FakeTriageAiClient extends AiClient {
 
   async status(context: IssueStatusContext): Promise<StatusOutput> {
     await Promise.resolve();
+    this.recordModelCall('status');
     this.logger.log(
       `[FAKE AI] Getting status for issue #${context.issue.number}: ${context.issue.title}`,
     );
@@ -380,6 +407,7 @@ export class FakeTriageAiClient extends AiClient {
 
   async blocker(context: IssueBlockerContext): Promise<BlockerOutput> {
     await Promise.resolve();
+    this.recordModelCall('blocker');
     this.logger.log(
       `[FAKE AI] Analyzing blocker for issue #${context.issue.number}: ${context.issue.title}`,
     );

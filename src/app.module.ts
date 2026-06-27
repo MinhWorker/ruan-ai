@@ -6,6 +6,8 @@ import { HealthModule } from './health/health.module';
 import { JobModule } from './job/job.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { PmWorkflowModule } from './pm-workflow/pm-workflow.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
+import { OpsModule } from './ops/ops.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { PmWorkflowModule } from './pm-workflow/pm-workflow.module';
     JobModule,
     WebhookModule,
     PmWorkflowModule,
+    TelemetryModule,
+    OpsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

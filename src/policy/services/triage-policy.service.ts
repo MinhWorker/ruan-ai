@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { TriageOutput } from '../../ai/interfaces/triage-output.interface';
 import { PlanOutput } from '../../ai/interfaces/plan-output.interface';
 import { SplitOutput } from '../../ai/interfaces/split-output.interface';
 import { StatusOutput } from '../../ai/interfaces/status-output.interface';
 import { BlockerOutput } from '../../ai/interfaces/blocker-output.interface';
 import { PolicyValidationResult } from '../interfaces/policy-validation-result.interface';
+import { TelemetryService } from '../../telemetry/services/telemetry.service';
 
 /**
  * Validates proposed triage writes against policy rules.
@@ -20,6 +21,29 @@ import { PolicyValidationResult } from '../interfaces/policy-validation-result.i
 @Injectable()
 export class TriagePolicyService {
   private readonly logger = new Logger(TriagePolicyService.name);
+
+  constructor(
+    @Optional() private readonly telemetryService?: TelemetryService,
+  ) {}
+
+  private recordPolicyDecision(
+    workflow: string,
+    result: PolicyValidationResult,
+  ) {
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type: 'policy_decision',
+        severity: result.valid ? 'info' : 'warn',
+        message: `Policy decision for ${workflow}: ${result.valid ? 'allowed' : 'rejected'}`,
+        metadata: {
+          workflow,
+          valid: result.valid,
+          rejectedLabels: result.rejectedLabels,
+          commentRejectionReason: result.commentRejectionReason,
+        },
+      });
+    }
+  }
 
   /**
    * Validate a triage output against the repository's label set and policy config.
@@ -99,7 +123,7 @@ export class TriagePolicyService {
     // A result is "valid" if there is at least some allowed action
     const valid = allowedLabels.length > 0 || commentValidation.allowed;
 
-    return {
+    const result: PolicyValidationResult = {
       valid,
       allowedLabels,
       rejectedLabels,
@@ -107,11 +131,13 @@ export class TriagePolicyService {
       commentRejectionReason: commentValidation.reason,
       warnings,
     };
+    this.recordPolicyDecision('triage', result);
+    return result;
   }
 
   validatePlan(output: PlanOutput): PolicyValidationResult {
     const commentValidation = this.validateComment(output.commentBody);
-    return {
+    const result: PolicyValidationResult = {
       valid: commentValidation.allowed,
       allowedLabels: [],
       rejectedLabels: [],
@@ -119,6 +145,8 @@ export class TriagePolicyService {
       commentRejectionReason: commentValidation.reason,
       warnings: [],
     };
+    this.recordPolicyDecision('plan', result);
+    return result;
   }
 
   validateSplit(
@@ -132,7 +160,7 @@ export class TriagePolicyService {
       this.logger.warn(
         'Workflow transition rejected: Split requires an active plan',
       );
-      return {
+      const result: PolicyValidationResult = {
         valid: false,
         allowedLabels: [],
         rejectedLabels: [],
@@ -141,6 +169,8 @@ export class TriagePolicyService {
           'Split workflow transition is not allowed without an active plan',
         warnings: ['No active plan found on the issue'],
       };
+      this.recordPolicyDecision('split', result);
+      return result;
     }
 
     // Rule: Validate task handoff output does not authorize direct repository mutation
@@ -169,7 +199,7 @@ export class TriagePolicyService {
       ? 'Split contains tasks requesting unauthorized operations'
       : commentValidation.reason;
 
-    return {
+    const result: PolicyValidationResult = {
       valid: commentAllowed,
       allowedLabels: [],
       rejectedLabels: [],
@@ -177,11 +207,13 @@ export class TriagePolicyService {
       commentRejectionReason,
       warnings,
     };
+    this.recordPolicyDecision('split', result);
+    return result;
   }
 
   validateStatus(output: StatusOutput): PolicyValidationResult {
     const commentValidation = this.validateComment(output.commentBody);
-    return {
+    const result: PolicyValidationResult = {
       valid: commentValidation.allowed,
       allowedLabels: [],
       rejectedLabels: [],
@@ -189,11 +221,13 @@ export class TriagePolicyService {
       commentRejectionReason: commentValidation.reason,
       warnings: [],
     };
+    this.recordPolicyDecision('status', result);
+    return result;
   }
 
   validateBlocker(output: BlockerOutput): PolicyValidationResult {
     const commentValidation = this.validateComment(output.commentBody);
-    return {
+    const result: PolicyValidationResult = {
       valid: commentValidation.allowed,
       allowedLabels: [],
       rejectedLabels: [],
@@ -201,6 +235,8 @@ export class TriagePolicyService {
       commentRejectionReason: commentValidation.reason,
       warnings: [],
     };
+    this.recordPolicyDecision('blocker', result);
+    return result;
   }
 
   private validateComment(commentBody: string): {

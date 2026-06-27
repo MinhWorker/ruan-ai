@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { GithubWriter } from '../interfaces/github-writer.interface';
+import { TelemetryService } from '../../telemetry/services/telemetry.service';
+import { RateLimitTrackerService } from '../../telemetry/services/rate-limit-tracker.service';
 
 /**
  * Recorded write operation for test assertions.
@@ -25,6 +27,13 @@ export class FakeGithubWriter extends GithubWriter {
   private readonly writes: RecordedWrite[] = [];
   private readonly issueLabels = new Map<string, Set<string>>();
   private readonly issueComments = new Map<string, Map<string, string>>();
+
+  constructor(
+    @Optional() private readonly telemetryService?: TelemetryService,
+    @Optional() private readonly rateLimitTracker?: RateLimitTrackerService,
+  ) {
+    super();
+  }
 
   /**
    * Get all recorded writes for test assertions.
@@ -74,6 +83,29 @@ export class FakeGithubWriter extends GithubWriter {
     const key = `${owner}/${repo}#${issueNumber}`;
     this.logger.log(`[FAKE] Applying labels [${labels.join(', ')}] to ${key}`);
 
+    if (this.rateLimitTracker) {
+      this.rateLimitTracker.recordGithubRequest();
+    }
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type: 'github_write',
+        severity: 'info',
+        message: 'Applied labels to issue',
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        metadata: { labels },
+      });
+      this.telemetryService.recordAudit({
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        proposedWriteSummary: `Applied labels: ${labels.join(', ')}`,
+        policyDecision: 'allowed',
+        writerResultMetadata: { type: 'applyLabels' },
+      });
+    }
+
     const existing = this.issueLabels.get(key) ?? new Set<string>();
     for (const label of labels) {
       existing.add(label);
@@ -100,6 +132,29 @@ export class FakeGithubWriter extends GithubWriter {
     await Promise.resolve();
     const key = `${owner}/${repo}#${issueNumber}`;
     this.logger.log(`[FAKE] Upserting comment on ${key} with marker`);
+
+    if (this.rateLimitTracker) {
+      this.rateLimitTracker.recordGithubRequest();
+    }
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type: 'github_write',
+        severity: 'info',
+        message: 'Upserted comment on issue',
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        metadata: { marker },
+      });
+      this.telemetryService.recordAudit({
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        proposedWriteSummary: `Upserted comment with marker: ${marker}`,
+        policyDecision: 'allowed',
+        writerResultMetadata: { type: 'upsertComment', marker },
+      });
+    }
 
     const comments = this.issueComments.get(key) ?? new Map<string, string>();
     const fullBody = `${marker}\n${body}`;
