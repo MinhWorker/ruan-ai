@@ -66,6 +66,7 @@ export class PlanWorkflowService {
         const repairedRaw = (await this.aiClient.repair(
           validation.errors,
           contextSummary,
+          'plan',
         )) as unknown;
         validation = validatePlanOutput(repairedRaw);
 

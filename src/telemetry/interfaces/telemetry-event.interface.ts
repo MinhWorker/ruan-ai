@@ -10,6 +10,7 @@ export type TelemetryWorkflowType =
 export type TelemetryEventType =
   | 'job_lifecycle'
   | 'model_call'
+  | 'model_error'
   | 'validation_failure'
   | 'rate_limit'
   | 'policy_decision'

@@ -50,4 +50,8 @@ export class ConfigService {
   get jobExecutionMode(): 'inline' | 'queued' {
     return this.config.JOB_EXECUTION_MODE;
   }
+
+  get aiModelTimeoutMs(): number {
+    return this.config.AI_MODEL_TIMEOUT_MS;
+  }
 }

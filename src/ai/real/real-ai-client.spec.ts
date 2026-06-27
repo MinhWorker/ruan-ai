@@ -4,6 +4,7 @@ import { ConfigService } from '../../config/config.service';
 import { IssueTriageContext } from '../../context/interfaces/issue-triage-context.interface';
 import { TelemetryService } from '../../telemetry/services/telemetry.service';
 import { RateLimitTrackerService } from '../../telemetry/services/rate-limit-tracker.service';
+import { getSchemaContract } from '../schemas/schema-contracts';
 
 const mockGenerateContent = jest.fn();
 const mockGetModel = jest.fn();
@@ -43,6 +44,7 @@ describe('RealAiClient', () => {
             googleAiStudioApiKey: 'test-key',
             primaryModelId: 'primary-model',
             fallbackModelId: 'fallback-model',
+            aiModelTimeoutMs: 120000,
           },
         },
         {
@@ -116,7 +118,7 @@ describe('RealAiClient', () => {
   it('should successfully run repair and parse JSON', async () => {
     mockGenerateContent.mockResolvedValueOnce({ text: '{"fixed":true}' });
 
-    const result = await client.repair(['error'], 'summary');
+    const result = await client.repair(['error'], 'summary', 'status');
     expect(result).toEqual({ fixed: true });
   });
 
@@ -130,5 +132,183 @@ describe('RealAiClient', () => {
     mockGetModel.mockRejectedValueOnce(new Error('Not found'));
     const result = await client.checkModel('invalid-model');
     expect(result).toBe(false);
+  });
+
+  // -- New tests for issue #7 acceptance criteria --
+
+  describe('workflow-specific schema contracts in prompts', () => {
+    const workflows = ['triage', 'plan', 'split', 'status', 'blocker'] as const;
+
+    for (const workflow of workflows) {
+      it(`should include the ${workflow} schema contract in the ${workflow} prompt`, async () => {
+        const schemaContract = getSchemaContract(workflow);
+        mockGenerateContent.mockResolvedValueOnce({
+          text: '{"workflow":"' + workflow + '"}',
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const dummyContext = {} as any;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        await (client as any)[workflow](dummyContext);
+
+        const [call] = mockGenerateContent.mock.calls as Array<
+          [{ contents?: string }]
+        >;
+        const promptText = call[0].contents as string;
+
+        // Verify the schema contract is embedded in the prompt
+        expect(promptText).toContain(schemaContract);
+        // Verify the workflow discriminator is present
+        expect(promptText).toContain(`"workflow": "${workflow}"`);
+      });
+    }
+  });
+
+  describe('repair prompt includes target workflow and required fields', () => {
+    it('should include the target workflow name in the repair prompt', async () => {
+      mockGenerateContent.mockResolvedValueOnce({
+        text: '{"workflow":"status","state":"in_progress"}',
+      });
+
+      await client.repair(
+        ['state must be one of not_started, ready, ...'],
+        'Status workflow for repo owner/repo issue #1',
+        'status',
+      );
+
+      const [call] = mockGenerateContent.mock.calls as Array<
+        [{ contents?: string }]
+      >;
+      const promptText = call[0].contents as string;
+
+      expect(promptText).toContain('"status"');
+      expect(promptText).toContain('repairing a failed "status" workflow');
+      expect(promptText).toContain(getSchemaContract('status'));
+    });
+
+    it('should include a different schema contract for a different target workflow', async () => {
+      mockGenerateContent.mockResolvedValueOnce({
+        text: '{"workflow":"triage"}',
+      });
+
+      await client.repair(
+        ['summary must be a non-empty string'],
+        'Triage workflow context',
+        'triage',
+      );
+
+      const [call] = mockGenerateContent.mock.calls as Array<
+        [{ contents?: string }]
+      >;
+      const promptText = call[0].contents as string;
+
+      expect(promptText).toContain('"triage"');
+      expect(promptText).toContain(getSchemaContract('triage'));
+      // Ensure it does NOT contain a different workflow's contract discriminator
+      expect(promptText).not.toContain('"workflow": "plan"');
+    });
+  });
+
+  describe('configurable model timeout', () => {
+    it('should use custom timeout from ConfigService', async () => {
+      const customModule: TestingModule = await Test.createTestingModule({
+        providers: [
+          RealAiClient,
+          {
+            provide: ConfigService,
+            useValue: {
+              googleAiStudioApiKey: 'test-key',
+              primaryModelId: 'primary-model',
+              fallbackModelId: 'fallback-model',
+              aiModelTimeoutMs: 60000,
+            },
+          },
+          {
+            provide: TelemetryService,
+            useValue: telemetryService,
+          },
+          {
+            provide: RateLimitTrackerService,
+            useValue: rateLimitTracker,
+          },
+        ],
+      }).compile();
+
+      const customClient = customModule.get<RealAiClient>(RealAiClient);
+      // Access private field via any cast to verify configuration
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect((customClient as any).timeoutMs).toBe(60000);
+    });
+
+    it('should use default 120s timeout when ConfigService provides 120000', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect((client as any).timeoutMs).toBe(120000);
+    });
+  });
+
+  describe('telemetry error classification', () => {
+    it('should classify abort errors as provider_timeout', async () => {
+      const abortError = new Error('This operation was aborted');
+      abortError.name = 'AbortError';
+      mockGenerateContent.mockRejectedValueOnce(abortError);
+
+      await expect(client.triage(triageContext)).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_timeout',
+            workflow: 'triage',
+          }),
+        }),
+      );
+    });
+
+    it('should classify non-abort errors as provider_error', async () => {
+      mockGenerateContent.mockRejectedValueOnce(
+        new Error('Network connection failed'),
+      );
+
+      await expect(client.triage(triageContext)).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_error',
+            workflow: 'triage',
+          }),
+        }),
+      );
+    });
+
+    it('should classify repair abort errors as provider_timeout with repair:workflow prefix', async () => {
+      const abortError = new Error('This operation was aborted');
+      abortError.name = 'AbortError';
+      mockGenerateContent.mockRejectedValueOnce(abortError);
+
+      await expect(
+        client.repair(['error'], 'summary', 'status'),
+      ).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_timeout',
+            workflow: 'repair:status',
+          }),
+        }),
+      );
+    });
   });
 });
