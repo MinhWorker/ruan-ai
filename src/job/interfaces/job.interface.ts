@@ -17,5 +17,8 @@ export interface Job {
   updatedAt: Date;
   issueNumber?: number;
   repositoryId?: number;
+  repositoryOwner?: string;
+  repositoryName?: string;
+  senderLogin?: string;
   installationId?: number;
 }

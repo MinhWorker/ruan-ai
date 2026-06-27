@@ -5,9 +5,16 @@ import { ConfigModule } from './config/config.module';
 import { HealthModule } from './health/health.module';
 import { JobModule } from './job/job.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { PmWorkflowModule } from './pm-workflow/pm-workflow.module';
 
 @Module({
-  imports: [ConfigModule, HealthModule, JobModule, WebhookModule],
+  imports: [
+    ConfigModule,
+    HealthModule,
+    JobModule,
+    WebhookModule,
+    PmWorkflowModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -33,6 +33,9 @@ describe('JobService', () => {
         workflowType: 'issues.opened',
         issueNumber: 42,
         repositoryId: 999,
+        repositoryOwner: 'octo-org',
+        repositoryName: 'octo-repo',
+        senderLogin: 'octocat',
         installationId: 111,
       });
 
@@ -42,6 +45,9 @@ describe('JobService', () => {
       expect(job.attempts).toBe(0);
       expect(job.issueNumber).toBe(42);
       expect(job.repositoryId).toBe(999);
+      expect(job.repositoryOwner).toBe('octo-org');
+      expect(job.repositoryName).toBe('octo-repo');
+      expect(job.senderLogin).toBe('octocat');
       expect(job.installationId).toBe(111);
 
       const saved = await repository.findByDeliveryId('dlv-123');

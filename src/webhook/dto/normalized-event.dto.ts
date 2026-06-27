@@ -16,6 +16,8 @@ export interface NormalizedIssueEvent extends NormalizedBaseEvent {
   title: string;
   body: string;
   repositoryId: number;
+  repositoryOwner: string;
+  repositoryName: string;
 }
 
 export interface NormalizedCommentEvent extends NormalizedBaseEvent {
@@ -25,6 +27,8 @@ export interface NormalizedCommentEvent extends NormalizedBaseEvent {
   commentId: number;
   body: string;
   repositoryId: number;
+  repositoryOwner: string;
+  repositoryName: string;
   commands: string[];
 }
 

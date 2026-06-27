@@ -73,14 +73,23 @@ export class WebhookController {
     // Step 3: Create Job (in queued state)
     let issueNumber: number | undefined;
     let repositoryId: number | undefined;
+    let repositoryOwner: string | undefined;
+    let repositoryName: string | undefined;
+    let senderLogin: string | undefined;
     let installationId: number | undefined;
 
     if (normalized.eventType === 'issue') {
       issueNumber = normalized.issueNumber;
       repositoryId = normalized.repositoryId;
+      repositoryOwner = normalized.repositoryOwner;
+      repositoryName = normalized.repositoryName;
+      senderLogin = normalized.sender.login;
     } else if (normalized.eventType === 'comment') {
       issueNumber = normalized.issueNumber;
       repositoryId = normalized.repositoryId;
+      repositoryOwner = normalized.repositoryOwner;
+      repositoryName = normalized.repositoryName;
+      senderLogin = normalized.sender.login;
     } else if (normalized.eventType === 'installation') {
       installationId = normalized.installationId;
       if (normalized.repositoryIds && normalized.repositoryIds.length > 0) {
@@ -94,6 +103,9 @@ export class WebhookController {
       workflowType,
       issueNumber,
       repositoryId,
+      repositoryOwner,
+      repositoryName,
+      senderLogin,
       installationId,
     });
 

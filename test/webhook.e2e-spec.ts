@@ -50,7 +50,12 @@ describe('GithubWebhookController (e2e)', () => {
     const payload = {
       action: 'opened',
       issue: { number: 10, title: 'Test', body: 'Test' },
-      repository: { id: 123 },
+      repository: {
+        id: 123,
+        name: 'ruan-ai',
+        full_name: 'MinhWorker/ruan-ai',
+        owner: { login: 'MinhWorker' },
+      },
       sender: { login: 'tester', id: 4 },
     };
     const sig = getSignature(payload);
@@ -73,7 +78,12 @@ describe('GithubWebhookController (e2e)', () => {
     const payload = {
       action: 'opened',
       issue: { number: 10, title: 'Test', body: 'Test' },
-      repository: { id: 123 },
+      repository: {
+        id: 123,
+        name: 'ruan-ai',
+        full_name: 'MinhWorker/ruan-ai',
+        owner: { login: 'MinhWorker' },
+      },
       sender: { login: 'tester', id: 4 },
     };
     const sig = getSignature(payload);
@@ -111,7 +121,12 @@ describe('GithubWebhookController (e2e)', () => {
   it('POST /github/webhooks ignores unsupported events and returns 202', () => {
     const payload = {
       action: 'created',
-      repository: { id: 123 },
+      repository: {
+        id: 123,
+        name: 'ruan-ai',
+        full_name: 'MinhWorker/ruan-ai',
+        owner: { login: 'MinhWorker' },
+      },
     };
     const sig = getSignature(payload);
 

@@ -18,6 +18,11 @@ export interface GitHubWebhookBody {
   repositories?: { id: number }[];
   repository?: {
     id: number;
+    name?: string;
+    full_name?: string;
+    owner?: {
+      login?: string;
+    };
   };
   sender?: {
     login: string;
@@ -54,6 +59,14 @@ export class WebhookService {
     }
 
     const repositoryId = body?.repository?.id;
+    const repositoryOwner =
+      body?.repository?.owner?.login ||
+      body?.repository?.full_name?.split('/')[0] ||
+      '';
+    const repositoryName =
+      body?.repository?.name ||
+      body?.repository?.full_name?.split('/')[1] ||
+      '';
     this.logger.log(
       `Normalizing webhook event: ${eventName}.${action} for repository: ${repositoryId}`,
     );
@@ -67,6 +80,8 @@ export class WebhookService {
           title: body.issue.title || '',
           body: body.issue.body || '',
           repositoryId: repositoryId || 0,
+          repositoryOwner,
+          repositoryName,
           sender: {
             login: body.sender?.login || '',
             id: body.sender?.id || 0,
@@ -84,6 +99,8 @@ export class WebhookService {
           commentId: body.comment.id,
           body: commentBody,
           repositoryId: repositoryId || 0,
+          repositoryOwner,
+          repositoryName,
           commands,
           sender: {
             login: body.sender?.login || '',

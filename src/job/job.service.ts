@@ -12,6 +12,9 @@ export class JobService {
     workflowType: string;
     issueNumber?: number;
     repositoryId?: number;
+    repositoryOwner?: string;
+    repositoryName?: string;
+    senderLogin?: string;
     installationId?: number;
   }): Promise<Job> {
     const existing = await this.jobRepository.findByDeliveryId(
@@ -31,6 +34,9 @@ export class JobService {
       updatedAt: new Date(),
       issueNumber: params.issueNumber,
       repositoryId: params.repositoryId,
+      repositoryOwner: params.repositoryOwner,
+      repositoryName: params.repositoryName,
+      senderLogin: params.senderLogin,
       installationId: params.installationId,
     };
 

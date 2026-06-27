@@ -31,7 +31,12 @@ describe('WebhookService', () => {
           title: 'Bug report',
           body: 'This is a bug',
         },
-        repository: { id: 12345 },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
         sender: { login: 'octocat', id: 1 },
       };
 
@@ -46,6 +51,8 @@ describe('WebhookService', () => {
       expect(result.title).toBe('Bug report');
       expect(result.body).toBe('This is a bug');
       expect(result.repositoryId).toBe(12345);
+      expect(result.repositoryOwner).toBe('MinhWorker');
+      expect(result.repositoryName).toBe('ruan-ai');
       expect(result.sender.login).toBe('octocat');
     });
 
@@ -58,7 +65,12 @@ describe('WebhookService', () => {
           id: 999,
           body: 'Hello, please run /plan and check /status of the issue.',
         },
-        repository: { id: 12345 },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
         sender: { login: 'coder', id: 2 },
       };
 
@@ -74,6 +86,8 @@ describe('WebhookService', () => {
       expect(result.body).toBe(
         'Hello, please run /plan and check /status of the issue.',
       );
+      expect(result.repositoryOwner).toBe('MinhWorker');
+      expect(result.repositoryName).toBe('ruan-ai');
       expect(result.commands).toEqual(['/plan', '/status']);
       expect(result.sender.id).toBe(2);
     });

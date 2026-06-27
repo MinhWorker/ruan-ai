@@ -94,7 +94,13 @@ describe('WebhookController', () => {
       const body = {
         action: 'opened',
         issue: { number: 7 },
-        repository: { id: 777 },
+        repository: {
+          id: 777,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'octocat', id: 1 },
       };
 
       const response = await controller.handleWebhook(headers, body);
@@ -105,6 +111,9 @@ describe('WebhookController', () => {
       expect(job).not.toBeNull();
       expect(job?.issueNumber).toBe(7);
       expect(job?.repositoryId).toBe(777);
+      expect(job?.repositoryOwner).toBe('MinhWorker');
+      expect(job?.repositoryName).toBe('ruan-ai');
+      expect(job?.senderLogin).toBe('octocat');
       expect(job?.workflowType).toBe('issue.opened');
     });
   });
