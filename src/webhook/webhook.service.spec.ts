@@ -136,6 +136,28 @@ describe('WebhookService', () => {
       expect(result).toBeNull();
     });
 
+    it('should ignore comment created by Bot containing /blocker and /stop', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: {
+          id: 1002,
+          body: 'Blocked state noted. Try /blocker first, then /stop.',
+        },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'ruangm-ai[bot]', id: 5, type: 'Bot' },
+      };
+
+      const result = service.normalizeEvent(headers, body);
+      expect(result).toBeNull();
+    });
+
     it('should normalize installation.created event', () => {
       const headers = { 'x-github-event': 'installation' };
       const body = {
