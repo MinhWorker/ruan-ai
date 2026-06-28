@@ -76,4 +76,22 @@ describe('validateSplitOutput', () => {
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes('ownerType'))).toBe(true);
   });
+  it('should reject invalid allowedOperations in tasks', () => {
+    const invalidOutput = {
+      ...validOutput,
+      tasks: [
+        {
+          ...validOutput.tasks[0],
+          allowedOperations: ['create', 'destroy', 'edit'],
+        },
+      ],
+    };
+    const result = validateSplitOutput(invalidOutput);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((e) =>
+        e.includes('must be one of create, edit, view, inspect, read'),
+      ),
+    ).toBe(true);
+  });
 });

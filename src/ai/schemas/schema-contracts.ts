@@ -54,7 +54,7 @@ const SCHEMA_CONTRACTS: Record<string, string> = {
   - "title": non-empty string
   - "objective": non-empty string
   - "filesToInspect": array of strings
-  - "allowedOperations": array of strings
+  - "allowedOperations": array of strings; each must be one of "create", "edit", "view", "inspect", "read"
   - "dependencies": array of task id strings that reference existing task IDs in this same output
   - "parallelizationGuidance": string
   - "verificationCommands": array of strings
