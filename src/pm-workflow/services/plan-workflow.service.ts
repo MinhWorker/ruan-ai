@@ -57,6 +57,11 @@ export class PlanWorkflowService {
       // 3. Schema validation
       let validation = validatePlanOutput(rawOutput);
       if (!validation.valid || !validation.output) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'schema_validation_failure',
+          `AI plan schema validation failed. Errors: ${validation.errors.join('; ')}`,
+        );
         this.logger.warn(
           `AI plan schema validation failed. Initiating repair retry. Errors: ${validation.errors.join('; ')}`,
         );
@@ -72,6 +77,11 @@ export class PlanWorkflowService {
 
         if (!validation.valid || !validation.output) {
           const errorMsg = `AI plan repair retry failed. Schema errors: ${validation.errors.join('; ')}`;
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'repair_schema_failure',
+            errorMsg,
+          );
           this.logger.error(errorMsg);
           await this.jobService.updateJobStatus(job.jobId, 'failed');
           return {
@@ -102,13 +112,22 @@ export class PlanWorkflowService {
 
       // 5. Upsert planning comment
       const marker = planMarker(job.issueNumber!);
-      await this.githubWriter.upsertComment(
-        owner,
-        repo,
-        job.issueNumber!,
-        marker,
-        planOutput.commentBody,
-      );
+      try {
+        await this.githubWriter.upsertComment(
+          owner,
+          repo,
+          job.issueNumber!,
+          marker,
+          planOutput.commentBody,
+        );
+      } catch (err) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'github_write_failure',
+          `Failed to write plan comment: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw err;
+      }
 
       await this.jobService.updateJobStatus(job.jobId, 'completed');
       this.logger.log(`Plan workflow completed for job ${job.jobId}`);

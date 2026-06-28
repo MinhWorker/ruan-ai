@@ -57,6 +57,11 @@ export class StatusWorkflowService {
       // 3. Schema validation
       let validation = validateStatusOutput(rawOutput);
       if (!validation.valid || !validation.output) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'schema_validation_failure',
+          `AI status schema validation failed. Errors: ${validation.errors.join('; ')}`,
+        );
         this.logger.warn(
           `AI status schema validation failed. Initiating repair retry. Errors: ${validation.errors.join('; ')}`,
         );
@@ -72,6 +77,11 @@ export class StatusWorkflowService {
 
         if (!validation.valid || !validation.output) {
           const errorMsg = `AI status repair retry failed. Schema errors: ${validation.errors.join('; ')}`;
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'repair_schema_failure',
+            errorMsg,
+          );
           this.logger.error(errorMsg);
           await this.jobService.updateJobStatus(job.jobId, 'failed');
           return {
@@ -102,13 +112,22 @@ export class StatusWorkflowService {
 
       // 5. Upsert status comment
       const marker = statusMarker(job.issueNumber!);
-      await this.githubWriter.upsertComment(
-        owner,
-        repo,
-        job.issueNumber!,
-        marker,
-        statusOutput.commentBody,
-      );
+      try {
+        await this.githubWriter.upsertComment(
+          owner,
+          repo,
+          job.issueNumber!,
+          marker,
+          statusOutput.commentBody,
+        );
+      } catch (err) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'github_write_failure',
+          `Failed to write status comment: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw err;
+      }
 
       await this.jobService.updateJobStatus(job.jobId, 'completed');
       this.logger.log(`Status workflow completed for job ${job.jobId}`);

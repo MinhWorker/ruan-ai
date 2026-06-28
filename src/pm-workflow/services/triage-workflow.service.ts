@@ -79,6 +79,11 @@ export class TriageWorkflowService {
       const validation = validateTriageOutput(rawOutput);
       if (!validation.valid || !validation.output) {
         const errorMsg = `AI output schema validation failed: ${validation.errors.join('; ')}`;
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'schema_validation_failure',
+          errorMsg,
+        );
         this.logger.error(errorMsg);
         await this.jobService.updateJobStatus(job.jobId, 'failed');
         return {
@@ -137,13 +142,22 @@ export class TriageWorkflowService {
           }
         }
 
-        await this.githubWriter.upsertComment(
-          owner,
-          repo,
-          job.issueNumber!,
-          marker,
-          commentBody,
-        );
+        try {
+          await this.githubWriter.upsertComment(
+            owner,
+            repo,
+            job.issueNumber!,
+            marker,
+            commentBody,
+          );
+        } catch (err) {
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'github_write_failure',
+            `Failed to write triage comment: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          throw err;
+        }
         result.commentWritten = true;
       } else {
         this.logger.warn(
