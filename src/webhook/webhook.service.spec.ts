@@ -92,6 +92,50 @@ describe('WebhookService', () => {
       expect(result.sender.id).toBe(2);
     });
 
+    it('should ignore comment created by Bot containing /plan', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: {
+          id: 1000,
+          body: '/plan some task',
+        },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'ruan-ai[bot]', id: 3, type: 'Bot' },
+      };
+
+      const result = service.normalizeEvent(headers, body);
+      expect(result).toBeNull();
+    });
+
+    it('should ignore comment created by Bot containing /status and /split', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: {
+          id: 1001,
+          body: 'Check /status or /split',
+        },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'dependabot[bot]', id: 4, type: 'Bot' },
+      };
+
+      const result = service.normalizeEvent(headers, body);
+      expect(result).toBeNull();
+    });
+
     it('should normalize installation.created event', () => {
       const headers = { 'x-github-event': 'installation' };
       const body = {
