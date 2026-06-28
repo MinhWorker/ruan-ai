@@ -57,13 +57,15 @@ Use a small environment branch model:
 Recommended flow:
 
 1. Agents work on `codex/*` or `agy/*`.
-2. Merge reviewed work into `develop`.
-3. Promote `develop` to `staging` when ready for live pilot.
-4. Promote `staging` to `main` for official releases.
+2. Open PRs linked to issues.
+3. Merge reviewed work into `develop`.
+4. Promote `develop` to `staging` when ready for live pilot.
+5. Promote `staging` to `main` for official releases.
 
 For this early project, it is acceptable to temporarily connect Cloud Build to `codex/milestone-1-checkpoint`, but switch to `staging` before letting multiple agents work concurrently.
 
 The release and deployment rules are defined in `docs/operations/release-management.md`.
+The issue and PR rules are defined in `docs/operations/github-workflow.md`.
 
 ## Versioning
 

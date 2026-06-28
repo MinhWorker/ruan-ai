@@ -20,11 +20,12 @@ assume branch names alone enforce safety. Treat this document as the policy.
 ## Promotion Flow
 
 1. Implement on a short-lived branch such as `codex/*` or `agy/*`.
-2. Review and verify locally.
-3. Merge into `develop` for integration.
-4. Promote `develop` to `staging` for the live pilot.
-5. Promote `staging` to `main` only for official releases.
-6. Create a version tag only after the release decision is approved.
+2. Link the branch to a GitHub issue and open a PR.
+3. Review and verify locally.
+4. Merge into `develop` for integration.
+5. Promote `develop` to `staging` through a PR for the live pilot.
+6. Promote `staging` to `main` only for official releases.
+7. Create a version tag only after the release decision is approved.
 
 ## What Agents Must Not Do
 
