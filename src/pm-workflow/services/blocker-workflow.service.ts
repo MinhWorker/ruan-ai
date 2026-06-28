@@ -58,6 +58,11 @@ export class BlockerWorkflowService {
       // 3. Schema validation
       let validation = validateBlockerOutput(rawOutput);
       if (!validation.valid || !validation.output) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'schema_validation_failure',
+          `AI blocker schema validation failed. Errors: ${validation.errors.join('; ')}`,
+        );
         this.logger.warn(
           `AI blocker schema validation failed. Initiating repair retry. Errors: ${validation.errors.join('; ')}`,
         );
@@ -73,6 +78,11 @@ export class BlockerWorkflowService {
 
         if (!validation.valid || !validation.output) {
           const errorMsg = `AI blocker repair retry failed. Schema errors: ${validation.errors.join('; ')}`;
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'repair_schema_failure',
+            errorMsg,
+          );
           this.logger.error(errorMsg);
           await this.jobService.updateJobStatus(job.jobId, 'failed');
           return {
@@ -103,13 +113,22 @@ export class BlockerWorkflowService {
 
       // 5. Upsert blocker comment
       const marker = blockerMarker(job.issueNumber!);
-      await this.githubWriter.upsertComment(
-        owner,
-        repo,
-        job.issueNumber!,
-        marker,
-        blockerOutput.commentBody,
-      );
+      try {
+        await this.githubWriter.upsertComment(
+          owner,
+          repo,
+          job.issueNumber!,
+          marker,
+          blockerOutput.commentBody,
+        );
+      } catch (err) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'github_write_failure',
+          `Failed to write blocker comment: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw err;
+      }
 
       await this.jobService.updateJobStatus(job.jobId, 'completed');
       this.logger.log(`Blocker workflow completed for job ${job.jobId}`);
