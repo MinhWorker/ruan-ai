@@ -105,4 +105,26 @@ export class JobService {
     job.attempts += 1;
     return this.jobRepository.save(job);
   }
+
+  recordFailureEvent(
+    jobId: string,
+    failureCategory:
+      | 'schema_validation_failure'
+      | 'repair_schema_failure'
+      | 'github_write_failure',
+    message: string,
+  ): void {
+    if (this.telemetryService) {
+      this.telemetryService.recordEvent({
+        type:
+          failureCategory === 'github_write_failure'
+            ? 'github_write'
+            : 'validation_failure',
+        severity: 'error',
+        jobId,
+        message,
+        metadata: { failureCategory },
+      });
+    }
+  }
 }

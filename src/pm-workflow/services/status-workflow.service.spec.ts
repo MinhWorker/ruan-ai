@@ -18,6 +18,7 @@ describe('StatusWorkflowService', () => {
   beforeEach(async () => {
     jobService = {
       updateJobStatus: jest.fn().mockResolvedValue({}),
+      recordFailureEvent: jest.fn(),
     };
     contextBuilder = {
       build: jest.fn().mockResolvedValue({}),

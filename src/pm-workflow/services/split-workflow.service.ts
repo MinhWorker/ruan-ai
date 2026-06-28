@@ -57,6 +57,11 @@ export class SplitWorkflowService {
       // 3. Schema validation
       let validation = validateSplitOutput(rawOutput);
       if (!validation.valid || !validation.output) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'schema_validation_failure',
+          `AI split schema validation failed. Errors: ${validation.errors.join('; ')}`,
+        );
         this.logger.warn(
           `AI split schema validation failed. Initiating repair retry. Errors: ${validation.errors.join('; ')}`,
         );
@@ -72,6 +77,11 @@ export class SplitWorkflowService {
 
         if (!validation.valid || !validation.output) {
           const errorMsg = `AI split repair retry failed. Schema errors: ${validation.errors.join('; ')}`;
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'repair_schema_failure',
+            errorMsg,
+          );
           this.logger.error(errorMsg);
           await this.jobService.updateJobStatus(job.jobId, 'failed');
           return {
@@ -106,13 +116,22 @@ export class SplitWorkflowService {
 
       // 5. Upsert split comment
       const marker = splitMarker(job.issueNumber!);
-      await this.githubWriter.upsertComment(
-        owner,
-        repo,
-        job.issueNumber!,
-        marker,
-        splitOutput.commentBody,
-      );
+      try {
+        await this.githubWriter.upsertComment(
+          owner,
+          repo,
+          job.issueNumber!,
+          marker,
+          splitOutput.commentBody,
+        );
+      } catch (err) {
+        this.jobService.recordFailureEvent(
+          job.jobId,
+          'github_write_failure',
+          `Failed to write split comment: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw err;
+      }
 
       await this.jobService.updateJobStatus(job.jobId, 'completed');
       this.logger.log(`Split workflow completed for job ${job.jobId}`);

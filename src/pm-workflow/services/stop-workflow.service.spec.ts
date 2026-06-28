@@ -14,6 +14,7 @@ describe('StopWorkflowService', () => {
   beforeEach(async () => {
     jobService = {
       updateJobStatus: jest.fn().mockResolvedValue({}),
+      recordFailureEvent: jest.fn(),
     };
     followUpService = {
       cancelPendingForIssue: jest.fn().mockResolvedValue(undefined),
