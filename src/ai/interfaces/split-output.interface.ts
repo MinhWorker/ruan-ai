@@ -3,7 +3,7 @@ export interface CodingAgentTask {
   title: string;
   objective: string;
   filesToInspect: string[];
-  allowedOperations: string[];
+  allowedOperations: ('create' | 'edit' | 'view' | 'inspect' | 'read')[];
   dependencies: string[];
   parallelizationGuidance: string;
   verificationCommands: string[];
