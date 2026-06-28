@@ -27,6 +27,7 @@ export interface GitHubWebhookBody {
   sender?: {
     login: string;
     id: number;
+    type?: string;
   };
 }
 
@@ -90,6 +91,12 @@ export class WebhookService {
       }
     } else if (eventName === 'issue_comment') {
       if (action === 'created' && body.issue && body.comment) {
+        if (body.sender?.type === 'Bot') {
+          this.logger.log(
+            `Ignoring comment created by Bot: ${body.sender.login}`,
+          );
+          return null;
+        }
         const commentBody = body.comment.body || '';
         const commands = this.extractCommands(commentBody);
         return {
