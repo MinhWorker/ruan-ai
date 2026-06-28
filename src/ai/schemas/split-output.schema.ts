@@ -2,6 +2,7 @@ import { SplitOutput } from '../interfaces/split-output.interface';
 
 const VALID_CONFIDENCE_LEVELS = ['low', 'medium', 'high'] as const;
 const VALID_OWNER_TYPES = ['human', 'coding_agent', 'blocked'] as const;
+const VALID_OPERATIONS = ['create', 'edit', 'view', 'inspect', 'read'] as const;
 const REQUIRED_KEYS = [
   'workflow',
   'tasks',
@@ -88,9 +89,17 @@ export function validateSplitOutput(raw: unknown): SplitOutputValidationResult {
       if (!Array.isArray(task.allowedOperations)) {
         errors.push(`tasks[${i}].allowedOperations must be an array`);
       } else {
-        for (let j = 0; j < task.allowedOperations.length; j++) {
-          if (typeof task.allowedOperations[j] !== 'string') {
+        const ops = task.allowedOperations as unknown[];
+        for (let j = 0; j < ops.length; j++) {
+          const op = ops[j];
+          if (typeof op !== 'string') {
             errors.push(`tasks[${i}].allowedOperations[${j}] must be a string`);
+          } else if (
+            !VALID_OPERATIONS.includes(op as (typeof VALID_OPERATIONS)[number])
+          ) {
+            errors.push(
+              `tasks[${i}].allowedOperations[${j}] must be one of ${VALID_OPERATIONS.join(', ')}, got: ${String(op)}`,
+            );
           }
         }
       }

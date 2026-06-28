@@ -69,6 +69,7 @@ describe('getSchemaContract', () => {
       expect(contract).toContain('ownerType');
       expect(contract).toContain('filesToInspect');
       expect(contract).toContain('verificationCommands');
+      expect(contract).toContain('"create", "edit", "view", "inspect", "read"');
     });
   });
 
