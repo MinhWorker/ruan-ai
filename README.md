@@ -11,8 +11,10 @@ For agents and developers:
 
 1. Read `AGENTS.md`.
 2. Read `docs/design/00-index.md`.
-3. Read `docs/operations/ci-cd.md` before touching branches, releases, or deployment.
-4. Read the subsystem design doc for the task.
+3. Read `CONTRIBUTING.md`.
+4. Read `docs/operations/github-workflow.md`.
+5. Read `docs/operations/ci-cd.md` before touching branches, releases, or deployment.
+6. Read the subsystem design doc for the task.
 
 Do not deploy, change release branches, create release tags, or alter Cloud Run
 configuration unless the task explicitly asks for that operational change.
@@ -53,6 +55,7 @@ one-off environment updates.
 See:
 
 - `docs/operations/ci-cd.md`
+- `docs/operations/github-workflow.md`
 - `docs/operations/cloud-run-staging.md`
 - `docs/operations/release-management.md`
 
