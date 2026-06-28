@@ -2,18 +2,28 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JobService } from './job.service';
 import { JobRepository } from './job.repository';
 import { InMemoryJobRepository } from './in-memory-job.repository';
+import { TelemetryService } from '../telemetry/services/telemetry.service';
 
 describe('JobService', () => {
   let service: JobService;
   let repository: JobRepository;
+  let telemetryService: jest.Mocked<Pick<TelemetryService, 'recordEvent'>>;
 
   beforeEach(async () => {
+    telemetryService = {
+      recordEvent: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobService,
         {
           provide: JobRepository,
           useClass: InMemoryJobRepository,
+        },
+        {
+          provide: TelemetryService,
+          useValue: telemetryService,
         },
       ],
     }).compile();
@@ -110,6 +120,40 @@ describe('JobService', () => {
 
       const fetched = await repository.findById(job.jobId);
       expect(fetched?.attempts).toBe(1);
+    });
+  });
+
+  describe('recordFailureEvent', () => {
+    it('should record validation failures with failure category metadata', () => {
+      service.recordFailureEvent(
+        'job-1',
+        'schema_validation_failure',
+        'Invalid status output',
+      );
+
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith({
+        type: 'validation_failure',
+        severity: 'error',
+        jobId: 'job-1',
+        message: 'Invalid status output',
+        metadata: { failureCategory: 'schema_validation_failure' },
+      });
+    });
+
+    it('should record github write failures as github_write events', () => {
+      service.recordFailureEvent(
+        'job-2',
+        'github_write_failure',
+        'Write failed',
+      );
+
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith({
+        type: 'github_write',
+        severity: 'error',
+        jobId: 'job-2',
+        message: 'Write failed',
+        metadata: { failureCategory: 'github_write_failure' },
+      });
     });
   });
 });
