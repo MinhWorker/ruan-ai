@@ -176,7 +176,7 @@ describe('GithubWebhookController (e2e)', () => {
       const payload = {
         action: 'created',
         issue: { number: 12, title: 'Test', body: 'Test' },
-        comment: { id: 301, body: '/plan' },
+        comment: { id: 301, body: '@ruangm-ai /plan' },
         repository: {
           id: 123,
           name: 'ruan-ai',
@@ -205,7 +205,7 @@ describe('GithubWebhookController (e2e)', () => {
       const payload = {
         action: 'created',
         issue: { number: 13, title: 'Test', body: 'Test' },
-        comment: { id: 302, body: '/status' },
+        comment: { id: 302, body: '@ruangm-ai /status' },
         repository: {
           id: 123,
           name: 'ruan-ai',
@@ -227,6 +227,37 @@ describe('GithubWebhookController (e2e)', () => {
           const body = res.body as Record<string, unknown>;
           expect(body.status).toBe('accepted');
           expect(body.execution).toEqual({ mode: 'inline', success: true });
+        });
+    });
+
+    it('issue_comment accidental slash text in inline mode is ignored', () => {
+      const payload = {
+        action: 'created',
+        issue: { number: 14, title: 'Test', body: 'Test' },
+        comment: { id: 303, body: 'Staging /health returned status ok.' },
+        repository: {
+          id: 123,
+          name: 'ruan-ai',
+          full_name: 'MinhWorker/ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'tester', id: 4 },
+      };
+      const sig = getSignature(payload);
+
+      return request(app.getHttpServer())
+        .post('/github/webhooks')
+        .set('x-hub-signature-256', sig)
+        .set('x-github-event', 'issue_comment')
+        .set('x-github-delivery', 'delivery-id-e2e-inline-accidental-health')
+        .send(payload)
+        .expect(202)
+        .expect((res) => {
+          const body = res.body as Record<string, unknown>;
+          expect(body.status).toBe('ignored');
+          expect(body.reason).toBe('No slash commands in comment');
+          expect(body.jobId).toBeUndefined();
+          expect(body.execution).toBeUndefined();
         });
     });
   });
