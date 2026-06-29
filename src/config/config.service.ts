@@ -54,4 +54,8 @@ export class ConfigService {
   get aiModelTimeoutMs(): number {
     return this.config.AI_MODEL_TIMEOUT_MS;
   }
+
+  get botMentionName(): string {
+    return this.config.BOT_MENTION_NAME;
+  }
 }

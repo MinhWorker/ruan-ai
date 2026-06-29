@@ -61,6 +61,46 @@ describe('Config Validation', () => {
     expect(config.JOB_EXECUTION_MODE).toBe('inline');
   });
 
+  it('should default bot mention name', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+    };
+
+    const config = validateConfig(env);
+    expect(config.BOT_MENTION_NAME).toBe('ruangm-ai');
+  });
+
+  it('should accept custom bot mention name', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+      BOT_MENTION_NAME: 'custom-bot',
+    };
+
+    const config = validateConfig(env);
+    expect(config.BOT_MENTION_NAME).toBe('custom-bot');
+  });
+
+  it('should normalize leading @ in bot mention name', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+      BOT_MENTION_NAME: '@custom-bot',
+    };
+
+    const config = validateConfig(env);
+    expect(config.BOT_MENTION_NAME).toBe('custom-bot');
+  });
+
+  it('should fail if bot mention name is blank', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+      BOT_MENTION_NAME: '   ',
+    };
+
+    expect(() => validateConfig(env)).toThrow(
+      /BOT_MENTION_NAME must be a non-empty mention name/,
+    );
+  });
+
   it('should fail if execution mode is invalid', () => {
     const env = {
       GITHUB_WEBHOOK_SECRET: 'secret',

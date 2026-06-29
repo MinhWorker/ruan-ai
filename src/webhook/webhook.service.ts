@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NormalizedEvent } from './dto/normalized-event.dto';
+import { ConfigService } from '../config/config.service';
 
 export interface GitHubWebhookBody {
   action?: string;
@@ -34,6 +35,8 @@ export interface GitHubWebhookBody {
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
+
+  constructor(private readonly configService: ConfigService) {}
 
   normalizeEvent(
     headers: Record<string, string | string[] | undefined>,
@@ -139,9 +142,16 @@ export class WebhookService {
 
   private extractCommands(text: string): string[] {
     if (!text) return [];
-    // Extract words starting with a slash, e.g. /triage, /plan
-    const matches = text.match(/\/[a-zA-Z0-9_-]+/g);
-    if (!matches) return [];
-    return matches.map((m) => m.toLowerCase());
+
+    const botName = this.escapeRegExp(this.configService.botMentionName);
+    const regex = new RegExp(`@${botName}\\s+(\\/[a-zA-Z0-9_-]+)`, 'g');
+    const matches = Array.from(text.matchAll(regex));
+
+    if (matches.length === 0) return [];
+    return matches.map((m) => m[1].toLowerCase());
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
