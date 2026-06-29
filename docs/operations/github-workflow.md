@@ -74,6 +74,8 @@ Do not open routine feature PRs directly into `main`.
 Only `staging` should trigger Cloud Run deployment. A PR into `staging` is a
 deployment decision, not just a code merge.
 
+Pushes to `staging` automatically trigger a read-only GitHub Actions workflow (`Staging Deployment Status`) that performs local verification checks (build, lint, unit tests, and E2E tests) and surfaces direct GCP console links to track the Cloud Build deployment progress. This workflow does NOT execute the deployment itself; the existing Cloud Build trigger remains the sole deployment mechanism.
+
 Do not create extra Cloud Build triggers without updating:
 
 - `cloudbuild.yaml`,
