@@ -45,11 +45,14 @@ The Cloud Run runtime service account still needs `roles/secretmanager.secretAcc
 
 ## GitHub Actions Deployment Status Visibility Layer
 
-To provide feedback in the GitHub UI, a lightweight GitHub Actions workflow runs on pushes to the `staging` branch (defined in [.github/workflows/staging-deployment.yml](file:///D:/ai/ruan-ai/.github/workflows/staging-deployment.yml)).
+To provide feedback in the GitHub UI, a lightweight GitHub Actions workflow runs on pushes to the `staging` branch (defined in `.github/workflows/staging-deployment.yml`).
 
 This workflow does **not** perform the deployment, preventing duplicate deployment attempts. Instead, it:
+
 1. Performs local checks (build, lint, unit tests, and E2E tests) to catch regression errors early.
 2. Surfaces links to Google Cloud Console (Cloud Build and Cloud Run) directly in the GitHub Job Summary.
+
+The baseline workflow is intentionally read-only and does not authenticate to Google Cloud. Its pass/fail result reflects local validation in GitHub Actions, not the final Cloud Build deployment result. Cloud Build remains the authoritative deployment status until the optional Workload Identity Federation upgrade below is implemented.
 
 ### Where to Monitor Staging Deployment Progress
 
@@ -64,18 +67,22 @@ This workflow does **not** perform the deployment, preventing duplicate deployme
 Currently, the workflow only prints static monitoring links. To make the GitHub Action block or report a dynamic deployment status check by querying GCP Cloud Build directly, future maintainers can configure GCP authentication using Workload Identity Federation (WIF).
 
 #### Required GCP Infrastructure Setup:
+
 1. **Workload Identity Pool & Provider**: Create a Workload Identity Pool and connect it to GitHub.
 2. **Service Account**: Create a dedicated GCP Service Account (e.g., `github-actions-observer@gen-lang-client-0591588109.iam.gserviceaccount.com`).
 3. **IAM Permissions**: Grant the Service Account the **Cloud Build Viewer** (`roles/cloudbuild.builds.viewer`) role on the project to read build statuses.
 4. **Workload Identity User**: Grant the GitHub repository permission to impersonate the Service Account.
 
 #### Required GitHub Repository Settings:
+
 Add the following secrets or variables to the GitHub repository:
+
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`: The full resource name of the Workload Identity Provider (e.g., `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/<POOL_ID>/providers/<PROVIDER_ID>`).
 - `GCP_SERVICE_ACCOUNT`: The email of the dedicated GCP Service Account.
 - `GCP_PROJECT_ID`: `gen-lang-client-0591588109`
 
 #### Implementation Steps for Workflow Upgrade:
+
 1. Add `permissions: id-token: write` and `contents: read` to the workflow job.
 2. Add the GCP authentication step:
    ```yaml
@@ -114,12 +121,12 @@ Add the following secrets or variables to the GitHub repository:
 
 Use a small environment branch model:
 
-| Branch | Purpose | Deploy behavior |
-| --- | --- | --- |
-| `main` | official release source | protected; deploy only after a reviewed release decision |
-| `staging` | Cloud Run staging/pilot | auto-deploy through Cloud Build after checks pass |
-| `develop` | integration branch for agent work | CI only; no deploy by default |
-| `codex/*`, `agy/*` | short-lived work branches | CI only; merge into `develop` or `staging` after review |
+| Branch             | Purpose                           | Deploy behavior                                          |
+| ------------------ | --------------------------------- | -------------------------------------------------------- |
+| `main`             | official release source           | protected; deploy only after a reviewed release decision |
+| `staging`          | Cloud Run staging/pilot           | auto-deploy through Cloud Build after checks pass        |
+| `develop`          | integration branch for agent work | CI only; no deploy by default                            |
+| `codex/*`, `agy/*` | short-lived work branches         | CI only; merge into `develop` or `staging` after review  |
 
 Recommended flow:
 

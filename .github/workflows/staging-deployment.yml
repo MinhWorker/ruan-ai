@@ -5,10 +5,22 @@ on:
     branches:
       - staging
 
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-deployment-status-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate-and-surface:
     name: Validate and Surface Deployment Status
     runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT_ID: gen-lang-client-0591588109
+      CLOUD_RUN_REGION: us-central1
+      CLOUD_RUN_SERVICE: ruan-ai-staging
+      STAGING_HEALTH_URL: https://ruan-ai-staging-309117600688.us-central1.run.app/health
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -28,7 +40,7 @@ jobs:
           GITHUB_WEBHOOK_SECRET: ci-test-secret
 
       - name: Run Lint Check
-        run: npm run lint
+        run: npx eslint "{src,apps,libs,test}/**/*.ts" --max-warnings=0
 
       - name: Run Unit Tests
         run: npx jest --runInBand
@@ -41,20 +53,22 @@ jobs:
           GITHUB_WEBHOOK_SECRET: ci-test-secret
 
       - name: Surface Deployment Information
+        if: always()
         run: |
-          echo "## 🚀 Staging Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "## Staging Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The staging deployment has been initiated on Google Cloud Platform." >> $GITHUB_STEP_SUMMARY
-          echo "GitHub Actions validated the build, linting, and test suite successfully. The deployment itself is executed by the GCP Cloud Build trigger watching the \`staging\` branch." >> $GITHUB_STEP_SUMMARY
+          echo "Cloud Build remains the only deployment executor. This GitHub Actions workflow performs local validation and surfaces monitoring links for the Cloud Build trigger that watches the \`staging\` branch." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔗 Monitor Deployment & Services" >> $GITHUB_STEP_SUMMARY
+          echo "This baseline workflow does not authenticate to Google Cloud, so it does not assert the final Cloud Build result. Use the Cloud Build link below for the authoritative deploy status." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Monitor Deployment And Services" >> $GITHUB_STEP_SUMMARY
           echo "| Resource | Location | Description |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛠️ **GCP Cloud Build** | [Cloud Build Job (Commit ${{ github.sha }})](https://console.cloud.google.com/cloud-build/builds?project=gen-lang-client-0591588109&query=commit_sha%3D%22${{ github.sha }}%22) | View the build steps, docker image creation, and deployment progress. |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🏃 **GCP Cloud Run** | [Cloud Run Service Revisions](https://console.cloud.google.com/run/detail/us-central1/ruan-ai-staging/revisions?project=gen-lang-client-0591588109) | View deployed service revisions, traffic allocations, and CPU/Memory usage. |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🪵 **GCP Cloud Run Logs** | [Service Logs](https://console.cloud.google.com/run/detail/us-central1/ruan-ai-staging/logs?project=gen-lang-client-0591588109) | Access live application logs and stderr output. |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🌐 **Staging URL** | [ruan-ai-staging Health Check](https://ruan-ai-staging-309117600688.us-central1.run.app/health) | Smoke check the live staging deployment health endpoint. |" >> $GITHUB_STEP_SUMMARY
+          echo "| **GCP Cloud Build** | [Cloud Build Job (Commit ${{ github.sha }})](https://console.cloud.google.com/cloud-build/builds?project=${GCP_PROJECT_ID}&query=commit_sha%3D%22${{ github.sha }}%22) | View the authoritative build, image, deploy, and smoke-check result. |" >> $GITHUB_STEP_SUMMARY
+          echo "| **GCP Cloud Run** | [Cloud Run Service Revisions](https://console.cloud.google.com/run/detail/${CLOUD_RUN_REGION}/${CLOUD_RUN_SERVICE}/revisions?project=${GCP_PROJECT_ID}) | View deployed revisions, traffic allocations, and runtime settings. |" >> $GITHUB_STEP_SUMMARY
+          echo "| **GCP Cloud Run Logs** | [Service Logs](https://console.cloud.google.com/run/detail/${CLOUD_RUN_REGION}/${CLOUD_RUN_SERVICE}/logs?project=${GCP_PROJECT_ID}) | Access application stdout/stderr for the staging service. |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Staging URL** | [ruan-ai-staging Health Check](${STAGING_HEALTH_URL}) | Manually smoke check the live staging health endpoint. |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ℹ️ Promotion Flow Reminder" >> $GITHUB_STEP_SUMMARY
+          echo "### Promotion Flow Reminder" >> $GITHUB_STEP_SUMMARY
           echo "- To promote these staging changes to production/official release, open a pull request from \`staging\` to \`main\`." >> $GITHUB_STEP_SUMMARY
           echo "- Version tagging (\`v0.x.x\`) should only occur after a formal release decision is approved." >> $GITHUB_STEP_SUMMARY
