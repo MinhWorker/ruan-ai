@@ -5,13 +5,20 @@ import {
   NormalizedCommentEvent,
   NormalizedInstallationEvent,
 } from './dto/normalized-event.dto';
+import { ConfigService } from '../config/config.service';
 
 describe('WebhookService', () => {
   let service: WebhookService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WebhookService],
+      providers: [
+        WebhookService,
+        {
+          provide: ConfigService,
+          useValue: { botMentionName: 'ruangm-ai' },
+        },
+      ],
     }).compile();
 
     service = module.get<WebhookService>(WebhookService);
@@ -63,7 +70,7 @@ describe('WebhookService', () => {
         issue: { number: 42 },
         comment: {
           id: 999,
-          body: 'Hello, please run /plan and check /status of the issue.',
+          body: 'Hello, please run @ruangm-ai /plan and check @ruangm-ai /status of the issue.',
         },
         repository: {
           id: 12345,
@@ -84,12 +91,129 @@ describe('WebhookService', () => {
       expect(result.issueNumber).toBe(42);
       expect(result.commentId).toBe(999);
       expect(result.body).toBe(
-        'Hello, please run /plan and check /status of the issue.',
+        'Hello, please run @ruangm-ai /plan and check @ruangm-ai /status of the issue.',
       );
       expect(result.repositoryOwner).toBe('MinhWorker');
       expect(result.repositoryName).toBe('ruan-ai');
       expect(result.commands).toEqual(['/plan', '/status']);
       expect(result.sender.id).toBe(2);
+    });
+
+    it('should ignore comment without bot mention: Staging /health returned status ok.', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: { id: 9991, body: 'Staging /health returned status ok.' },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'coder', id: 2 },
+      };
+      const result = service.normalizeEvent(
+        headers,
+        body,
+      ) as NormalizedCommentEvent;
+      expect(result.commands).toEqual([]);
+    });
+
+    it('should ignore /status without @ruangm-ai', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: { id: 9992, body: 'Can we get a /status update?' },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'coder', id: 2 },
+      };
+      const result = service.normalizeEvent(
+        headers,
+        body,
+      ) as NormalizedCommentEvent;
+      expect(result.commands).toEqual([]);
+    });
+
+    it('should ignore code block containing /status', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: { id: 9993, body: 'Run this:\n```\n/status\n```' },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'coder', id: 2 },
+      };
+      const result = service.normalizeEvent(
+        headers,
+        body,
+      ) as NormalizedCommentEvent;
+      expect(result.commands).toEqual([]);
+    });
+
+    it('should extract unsupported command if explicit mention is used', () => {
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: { id: 9994, body: '@ruangm-ai /health' },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'coder', id: 2 },
+      };
+      const result = service.normalizeEvent(
+        headers,
+        body,
+      ) as NormalizedCommentEvent;
+      expect(result.commands).toEqual(['/health']);
+    });
+
+    it('should treat configured bot mention as literal text in command extraction', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          WebhookService,
+          {
+            provide: ConfigService,
+            useValue: { botMentionName: 'ruangm.ai' },
+          },
+        ],
+      }).compile();
+      const serviceWithRegexLikeMention =
+        module.get<WebhookService>(WebhookService);
+
+      const headers = { 'x-github-event': 'issue_comment' };
+      const body = {
+        action: 'created',
+        issue: { number: 42 },
+        comment: {
+          id: 9995,
+          body: '@ruangm-ai /status\n@ruangm.ai /plan',
+        },
+        repository: {
+          id: 12345,
+          name: 'ruan-ai',
+          owner: { login: 'MinhWorker' },
+        },
+        sender: { login: 'coder', id: 2 },
+      };
+
+      const result = serviceWithRegexLikeMention.normalizeEvent(
+        headers,
+        body,
+      ) as NormalizedCommentEvent;
+
+      expect(result.commands).toEqual(['/plan']);
     });
 
     it('should ignore comment created by Bot containing /plan', () => {
@@ -99,7 +223,7 @@ describe('WebhookService', () => {
         issue: { number: 42 },
         comment: {
           id: 1000,
-          body: '/plan some task',
+          body: '@ruangm-ai /plan some task',
         },
         repository: {
           id: 12345,
@@ -121,7 +245,7 @@ describe('WebhookService', () => {
         issue: { number: 42 },
         comment: {
           id: 1001,
-          body: 'Check /status or /split',
+          body: 'Check @ruangm-ai /status or @ruangm-ai /split',
         },
         repository: {
           id: 12345,
@@ -143,7 +267,7 @@ describe('WebhookService', () => {
         issue: { number: 42 },
         comment: {
           id: 1002,
-          body: 'Blocked state noted. Try /blocker first, then /stop.',
+          body: 'Blocked state noted. Try @ruangm-ai /blocker first, then @ruangm-ai /stop.',
         },
         repository: {
           id: 12345,

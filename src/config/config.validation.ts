@@ -10,6 +10,7 @@ export interface EnvironmentConfig {
   FALLBACK_MODEL_ID?: string;
   JOB_EXECUTION_MODE: 'inline' | 'queued';
   AI_MODEL_TIMEOUT_MS: number;
+  BOT_MENTION_NAME: string;
 }
 
 export function validateConfig(
@@ -56,6 +57,14 @@ export function validateConfig(
     );
   }
 
+  const rawBotMentionName = (env.BOT_MENTION_NAME ?? 'ruangm-ai').trim();
+  const botMentionName = rawBotMentionName.startsWith('@')
+    ? rawBotMentionName.slice(1)
+    : rawBotMentionName;
+  if (!botMentionName || /\s/.test(botMentionName)) {
+    errors.push('BOT_MENTION_NAME must be a non-empty mention name.');
+  }
+
   if (providerMode === 'real') {
     if (!env.GITHUB_APP_ID)
       errors.push('GITHUB_APP_ID is required in real mode.');
@@ -85,5 +94,6 @@ export function validateConfig(
     FALLBACK_MODEL_ID: env.FALLBACK_MODEL_ID,
     JOB_EXECUTION_MODE: jobExecutionMode,
     AI_MODEL_TIMEOUT_MS: aiModelTimeoutMs,
+    BOT_MENTION_NAME: botMentionName,
   };
 }

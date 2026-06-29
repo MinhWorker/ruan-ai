@@ -60,7 +60,7 @@ describe('Planning And Splitting E2E', () => {
       .send({
         action: 'created',
         issue: { number: 10 },
-        comment: { id: 201, body: 'Please /plan the work.' },
+        comment: { id: 201, body: 'Please @ruangm-ai /plan the work.' },
         repository: {
           id: 12345,
           name: 'repo',
@@ -109,7 +109,7 @@ describe('Planning And Splitting E2E', () => {
       .send({
         action: 'created',
         issue: { number: 11 },
-        comment: { id: 202, body: 'Can we run /split?' },
+        comment: { id: 202, body: 'Can we run @ruangm-ai /split?' },
         repository: {
           id: 12345,
           name: 'repo',
@@ -145,7 +145,7 @@ describe('Planning And Splitting E2E', () => {
       .send({
         action: 'created',
         issue: { number: 11 },
-        comment: { id: 203, body: 'Can we run /split?' },
+        comment: { id: 203, body: 'Can we run @ruangm-ai /split?' },
         repository: {
           id: 12345,
           name: 'repo',

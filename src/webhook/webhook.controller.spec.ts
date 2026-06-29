@@ -16,6 +16,7 @@ describe('WebhookController', () => {
   beforeEach(async () => {
     const mockConfigService = {
       githubWebhookSecret: 'test-secret',
+      botMentionName: 'ruangm-ai',
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -132,7 +133,7 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 101, body: 'Let us do this /plan now.' },
+        comment: { id: 101, body: 'Let us do this @ruangm-ai /plan now.' },
         repository: {
           id: 777,
           name: 'ruan-ai',
@@ -157,7 +158,7 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 102, body: 'Run /split please.' },
+        comment: { id: 102, body: 'Run @ruangm-ai /split please.' },
         repository: {
           id: 777,
           name: 'ruan-ai',
@@ -182,7 +183,10 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 103, body: 'First /split then /plan.' },
+        comment: {
+          id: 103,
+          body: 'First @ruangm-ai /split then @ruangm-ai /plan.',
+        },
         repository: {
           id: 777,
           name: 'ruan-ai',
@@ -207,7 +211,7 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 106, body: '/status now' },
+        comment: { id: 106, body: '@ruangm-ai /status now' },
         repository: {
           id: 777,
           name: 'ruan-ai',
@@ -222,7 +226,7 @@ describe('WebhookController', () => {
       expect(job?.repositoryOwner).toBe('MinhWorker');
       expect(job?.repositoryName).toBe('ruan-ai');
       expect(job?.commentId).toBe(106);
-      expect(job?.commentBody).toBe('/status now');
+      expect(job?.commentBody).toBe('@ruangm-ai /status now');
     });
 
     it('should create a comment.blocker job when /blocker command is present', async () => {
@@ -233,7 +237,7 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 107, body: '/blocker check' },
+        comment: { id: 107, body: '@ruangm-ai /blocker check' },
         repository: {
           id: 777,
           name: 'ruan-ai',
@@ -246,7 +250,7 @@ describe('WebhookController', () => {
       const job = await jobService.getJobByDeliveryId('dlv-blocker');
       expect(job?.workflowType).toBe('comment.blocker');
       expect(job?.commentId).toBe(107);
-      expect(job?.commentBody).toBe('/blocker check');
+      expect(job?.commentBody).toBe('@ruangm-ai /blocker check');
     });
 
     it('should create a comment.stop job when /stop command is present', async () => {
@@ -257,7 +261,7 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 108, body: '/stop now' },
+        comment: { id: 108, body: '@ruangm-ai /stop now' },
         repository: {
           id: 777,
           name: 'ruan-ai',
@@ -301,7 +305,10 @@ describe('WebhookController', () => {
       const body = {
         action: 'created',
         issue: { number: 7 },
-        comment: { id: 105, body: 'Call /magic or /deploy.' },
+        comment: {
+          id: 105,
+          body: 'Call @ruangm-ai /magic or @ruangm-ai /deploy.',
+        },
         repository: {
           id: 777,
           name: 'ruan-ai',
