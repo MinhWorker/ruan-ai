@@ -76,24 +76,45 @@ export class TriageWorkflowService {
       const rawOutput = await this.aiClient.triage(context);
 
       // Step 4: Validate output schema
-      const validation = validateTriageOutput(rawOutput);
+      let validation = validateTriageOutput(rawOutput);
       if (!validation.valid || !validation.output) {
-        const errorMsg = `AI output schema validation failed: ${validation.errors.join('; ')}`;
         this.jobService.recordFailureEvent(
           job.jobId,
           'schema_validation_failure',
-          errorMsg,
+          `AI triage schema validation failed. Errors: ${validation.errors.join('; ')}`,
         );
-        this.logger.error(errorMsg);
-        await this.jobService.updateJobStatus(job.jobId, 'failed');
-        return {
-          success: false,
-          labelsApplied: [],
-          labelsRejected: [],
-          commentWritten: false,
-          error: errorMsg,
-          warnings: [],
-        };
+        this.logger.warn(
+          `AI triage schema validation failed. Initiating repair retry. Errors: ${validation.errors.join('; ')}`,
+        );
+
+        // Repair retry (exactly once)
+        const contextSummary = `Triage workflow for repository ${owner}/${repo} issue #${job.issueNumber}`;
+        const repairedRaw = (await this.aiClient.repair(
+          validation.errors,
+          contextSummary,
+          'triage',
+        )) as unknown;
+        validation = validateTriageOutput(repairedRaw);
+
+        if (!validation.valid || !validation.output) {
+          const errorMsg = `AI triage repair retry failed. Schema errors: ${validation.errors.join('; ')}`;
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'repair_schema_failure',
+            errorMsg,
+          );
+          this.logger.error(errorMsg);
+          await this.jobService.updateJobStatus(job.jobId, 'failed');
+          return {
+            success: false,
+            labelsApplied: [],
+            labelsRejected: [],
+            commentWritten: false,
+            error: errorMsg,
+            warnings: [],
+          };
+        }
+        this.logger.log('AI triage repair retry succeeded.');
       }
 
       const triageOutput = validation.output;
@@ -116,16 +137,25 @@ export class TriageWorkflowService {
 
       // Apply allowed labels
       if (policyResult.allowedLabels.length > 0) {
-        await this.githubWriter.applyLabels(
-          owner,
-          repo,
-          job.issueNumber!,
-          policyResult.allowedLabels,
-        );
-        result.labelsApplied = policyResult.allowedLabels;
-        this.logger.log(
-          `Applied labels: ${policyResult.allowedLabels.join(', ')}`,
-        );
+        try {
+          await this.githubWriter.applyLabels(
+            owner,
+            repo,
+            job.issueNumber!,
+            policyResult.allowedLabels,
+          );
+          result.labelsApplied = policyResult.allowedLabels;
+          this.logger.log(
+            `Applied labels: ${policyResult.allowedLabels.join(', ')}`,
+          );
+        } catch (err) {
+          this.jobService.recordFailureEvent(
+            job.jobId,
+            'github_write_failure',
+            `Failed to apply labels: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          throw err;
+        }
       }
 
       // Write triage comment

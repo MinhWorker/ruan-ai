@@ -142,7 +142,7 @@ describe('TriageWorkflowService', () => {
     expect(commentWrite!.body).toContain('issue=3');
   });
 
-  it('should mark job as failed when AI output validation fails', async () => {
+  it('should attempt repair retry when AI output validation fails and succeed if repair succeeds', async () => {
     const invalidOutput: TriageOutput = {
       workflow: 'triage',
       summary: '', // will fail runtime validation
@@ -157,15 +157,88 @@ describe('TriageWorkflowService', () => {
     };
 
     jest.spyOn(aiClient, 'triage').mockResolvedValue(invalidOutput);
+    const aiFake = aiClient as unknown as FakeTriageAiClient;
+    aiFake.setRepairBehavior(() => {
+      return {
+        workflow: 'triage',
+        summary: 'Repaired summary',
+        riskLevel: 'low',
+        suggestedLabels: [],
+        missingInformation: [],
+        recommendedNextCommand: '/plan',
+        commentBody: 'Repaired triage comment',
+        confidence: 'high',
+        assumptions: [],
+        evidence: [],
+      };
+    });
 
     const job = await createTriageJob(99);
     const result = await service.execute(job);
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('schema validation failed');
+    expect(result.success).toBe(true);
+    expect(result.commentWritten).toBe(true);
+    const updatedJob = await jobService.getJobByDeliveryId(job.deliveryId);
+    expect(updatedJob?.status).toBe('completed');
+  });
 
+  it('should fail if repair retry also returns invalid schema output', async () => {
+    const invalidOutput: TriageOutput = {
+      workflow: 'triage',
+      summary: '',
+      riskLevel: 'low',
+      suggestedLabels: [],
+      missingInformation: [],
+      recommendedNextCommand: '/plan',
+      commentBody: '',
+      confidence: 'low',
+      assumptions: [],
+      evidence: [],
+    };
+
+    jest.spyOn(aiClient, 'triage').mockResolvedValue(invalidOutput);
+    const aiFake = aiClient as unknown as FakeTriageAiClient;
+    aiFake.setRepairBehavior(() => {
+      return { invalid: 'still bad' };
+    });
+
+    const job = await createTriageJob(100);
+    const result = await service.execute(job);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('AI triage repair retry failed');
     const updatedJob = await jobService.getJobByDeliveryId(job.deliveryId);
     expect(updatedJob?.status).toBe('failed');
+  });
+
+  it('should record github_write_failure and fail if applyLabels throws', async () => {
+    githubClient.setIssue('owner', 'repo', {
+      number: 101,
+      title: 'Bug: crash',
+      body: 'crash on open',
+      author: 'reporter',
+      createdAt: '2026-01-01T00:00:00Z',
+      labels: [],
+    });
+    githubClient.setLabels('owner', 'repo', [
+      { name: 'bug', description: 'Bug', color: 'ff0000' },
+    ]);
+
+    jest
+      .spyOn(writer, 'applyLabels')
+      .mockRejectedValue(new Error('GitHub API Error: 500'));
+    const recordSpy = jest.spyOn(jobService, 'recordFailureEvent');
+
+    const job = await createTriageJob(101);
+    const result = await service.execute(job);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('GitHub API Error');
+    expect(recordSpy).toHaveBeenCalledWith(
+      job.jobId,
+      'github_write_failure',
+      expect.stringContaining('GitHub API Error: 500'),
+    );
   });
 
   it('should handle partial policy rejection — apply allowed labels, reject others', async () => {
