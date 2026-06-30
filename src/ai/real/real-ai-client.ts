@@ -57,32 +57,83 @@ export class RealAiClient extends AiClient {
     error: unknown,
     failureCategory:
       | 'provider_timeout'
+      | 'provider_rate_limit'
+      | 'provider_auth_failure'
+      | 'provider_model_unavailable'
+      | 'provider_invalid_json'
+      | 'provider_error'
       | 'schema_validation_failure'
       | 'repair_schema_failure'
-      | 'github_write_failure'
-      | 'provider_error',
+      | 'github_write_failure',
     workflow: string,
   ): void {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    this.rateLimitTracker?.recordAiError(errorMsg);
+    const conciseMsg =
+      errorMsg.length > 300 ? errorMsg.substring(0, 300) + '...' : errorMsg;
+    this.rateLimitTracker?.recordAiError(conciseMsg);
     this.telemetryService?.recordEvent({
       type: 'model_error',
       severity: 'error',
-      message: `AI model error [${failureCategory}] in workflow ${workflow}: ${errorMsg}`,
-      metadata: { workflow, failureCategory, errorMessage: errorMsg },
+      message: `AI model error [${failureCategory}] in workflow ${workflow}: ${conciseMsg}`,
+      metadata: { workflow, failureCategory, errorMessage: conciseMsg },
     });
   }
 
-  private classifyError(error: unknown): 'provider_timeout' | 'provider_error' {
+  private classifyError(
+    error: unknown,
+  ):
+    | 'provider_timeout'
+    | 'provider_rate_limit'
+    | 'provider_auth_failure'
+    | 'provider_model_unavailable'
+    | 'provider_invalid_json'
+    | 'provider_error' {
+    if (error instanceof SyntaxError) {
+      return 'provider_invalid_json';
+    }
     if (error instanceof Error) {
       const msg = error.message.toLowerCase();
+      const name = error.name.toLowerCase();
       if (
         msg.includes('aborted') ||
         msg.includes('abort') ||
         msg.includes('timeout') ||
-        error.name === 'AbortError'
+        msg.includes('deadline exceeded') ||
+        name.includes('aborterror') ||
+        name.includes('timeouterror')
       ) {
         return 'provider_timeout';
+      }
+      if (
+        msg.includes('rate limit') ||
+        msg.includes('429') ||
+        msg.includes('quota exceeded') ||
+        msg.includes('too many requests')
+      ) {
+        return 'provider_rate_limit';
+      }
+      if (
+        msg.includes('api key') ||
+        msg.includes('auth') ||
+        msg.includes('unauthorized') ||
+        msg.includes('401') ||
+        msg.includes('403') ||
+        msg.includes('forbidden') ||
+        msg.includes('credentials') ||
+        msg.includes('permission denied')
+      ) {
+        return 'provider_auth_failure';
+      }
+      if (
+        msg.includes('model not found') ||
+        msg.includes('not found') ||
+        msg.includes('404') ||
+        msg.includes('unavailable')
+      ) {
+        return 'provider_model_unavailable';
+      }
+      if (msg.includes('json') || name.includes('syntaxerror')) {
+        return 'provider_invalid_json';
       }
     }
     return 'provider_error';
@@ -264,11 +315,22 @@ ${contextSummary}
   }
 
   async checkModel(modelId: string): Promise<boolean> {
+    let timeoutId: NodeJS.Timeout | undefined;
     try {
-      await this.ai.models.get({ model: modelId });
+      await Promise.race([
+        this.ai.models.get({ model: modelId }),
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error('Model availability check timed out')),
+            this.timeoutMs,
+          );
+        }),
+      ]);
       return true;
     } catch {
       return false;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 }

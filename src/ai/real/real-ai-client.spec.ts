@@ -134,6 +134,17 @@ describe('RealAiClient', () => {
     expect(result).toBe(false);
   });
 
+  it('should return false if model check times out', async () => {
+    jest.useFakeTimers();
+    mockGetModel.mockImplementationOnce(() => new Promise(() => undefined));
+
+    const result = client.checkModel('slow-model');
+    jest.advanceTimersByTime(120000);
+
+    await expect(result).resolves.toBe(false);
+    jest.useRealTimers();
+  });
+
   // -- New tests for issue #7 acceptance criteria --
 
   describe('workflow-specific schema contracts in prompts', () => {
@@ -264,6 +275,90 @@ describe('RealAiClient', () => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           metadata: expect.objectContaining({
             failureCategory: 'provider_timeout',
+            workflow: 'triage',
+          }),
+        }),
+      );
+    });
+
+    it('should classify rate limit errors as provider_rate_limit', async () => {
+      mockGenerateContent.mockRejectedValueOnce(
+        new Error('Quota exceeded: 429 Too Many Requests'),
+      );
+
+      await expect(client.triage(triageContext)).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_rate_limit',
+            workflow: 'triage',
+          }),
+        }),
+      );
+    });
+
+    it('should classify authentication/authorization errors as provider_auth_failure', async () => {
+      mockGenerateContent.mockRejectedValueOnce(
+        new Error('API key not valid. 401 Unauthorized'),
+      );
+
+      await expect(client.triage(triageContext)).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_auth_failure',
+            workflow: 'triage',
+          }),
+        }),
+      );
+    });
+
+    it('should classify model unavailable errors as provider_model_unavailable', async () => {
+      mockGenerateContent.mockRejectedValueOnce(
+        new Error('Model not found or is unavailable'),
+      );
+
+      await expect(client.triage(triageContext)).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_model_unavailable',
+            workflow: 'triage',
+          }),
+        }),
+      );
+    });
+
+    it('should classify JSON parse failures as provider_invalid_json', async () => {
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'invalid json here',
+      });
+
+      await expect(client.triage(triageContext)).rejects.toThrow();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(telemetryService.recordEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'model_error',
+          severity: 'error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: expect.objectContaining({
+            failureCategory: 'provider_invalid_json',
             workflow: 'triage',
           }),
         }),

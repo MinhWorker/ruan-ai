@@ -41,19 +41,30 @@
 **Runbook:**
 
 1. Check Google AI Studio status page.
-2. If rate-limited, ensure the background processes are paused or backoff logic is engaging.
-3. Switch `configuredModelId` to a fallback model via ops endpoints or configuration update if available.
-4. Review telemetry events (`type=rate_limit`) to understand request volume.
+2. Review `model_error` telemetry and its `failureCategory`:
+   `provider_rate_limit`, `provider_model_unavailable`,
+   `provider_auth_failure`, `provider_timeout`,
+   `provider_invalid_json`, or `provider_error`.
+3. If rate-limited, pause or reduce background processing before retrying.
+4. If the model is unavailable, verify the configured model ID in the approved
+   environment/configuration path. Do not change model IDs without owner review.
+5. If authentication fails, verify the secret binding and provider account
+   outside GitHub issue comments. Do not paste keys into logs, issues, or chat.
+6. Review `rate_limit` telemetry to understand request volume.
 
 ## 4. Invalid AI Output Repair Failures
 
 **Scenario:** Telemetry shows repeated `validation_failure` events and jobs are failing.
 **Runbook:**
 
-1. Inspect the raw AI output in the logs/telemetry.
-2. Review the `repair` model call results.
-3. If the model consistently fails to produce valid JSON schema, rollback to a more capable model (e.g., from Flash to Pro).
-4. Update the prompt or schema instructions if the API has changed.
+1. Inspect validation error summaries and workflow names in telemetry; do not
+   log or copy full prompts, raw credentials, or unredacted model context.
+2. Review whether the repair attempt produced `provider_invalid_json` or a
+   second schema validation failure.
+3. If the model consistently fails to produce valid JSON schema, propose a
+   model/profile change through the normal owner-reviewed configuration flow.
+4. Update prompt or schema instructions only after adding fixture coverage for
+   the failing workflow.
 
 ## 5. Policy Rejection Investigation
 
@@ -91,6 +102,24 @@
 1. Check `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` validity.
 2. Ensure the GitHub App is actually installed in the target repository (`owner/repo`).
 3. If using `GITHUB_INSTALLATION_ID` override, ensure it matches the actual installation ID for the repository.
+4. Review `github_write` telemetry for the failed action (`apply_labels`,
+   `create_comment`, `update_comment`, or `upsert_comment`) and the affected
+   repository/issue. Error metadata is redacted by `TelemetryService`.
+
+## 8a. GitHub Write Failures
+
+**Scenario:** AI output passed policy, but labels or comments were not written.
+**Runbook:**
+
+1. Query `github_write` telemetry for events with `severity=error`.
+2. Check the `action`, `repositoryOwner`, `repositoryName`, and `issueNumber`
+   fields to identify the failed write.
+3. For label failures, verify the label exists in the repository and the GitHub
+   App has issue write permissions.
+4. For comment failures, verify the app installation can read and write issue
+   comments and that the target issue still exists.
+5. Retry only after confirming the previous marker/upsert behavior will avoid
+   duplicate comments.
 
 ## 9. Provider Mode Configuration Errors
 
