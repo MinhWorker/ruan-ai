@@ -23,6 +23,7 @@ Minimal internal records:
 - model call metadata, not full secret-bearing prompts,
 - app comment IDs for idempotent updates,
 - scheduled follow-up state,
+- durable workflow state (tracking triage, plan, split, status, blocker, and paused state per issue),
 - rate-limit budget counters.
 
 **Note on Provider Configuration Storage**: Provider configuration requires durable storage but is strictly separated from persistent job storage and durable workflow state. Provider configuration governs identity and billing (i.e. _who_ pays for AI execution), while job/workflow states govern progress and event history (i.e. _what_ is happening). These must reside in separate database models.
