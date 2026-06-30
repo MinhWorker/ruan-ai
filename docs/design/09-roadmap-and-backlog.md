@@ -102,6 +102,7 @@ Build:
 - bounded retries and failure marking,
 - telemetry/audit records for execution start, success, failure, and skipped jobs,
 - e2e tests proving a signed webhook can execute a workflow without manual `processJob` calls.
+- durable workflow state for triage, plan, split, status, blocker, and pause behavior as defined by ADR 0008.
 
 Constraints:
 
