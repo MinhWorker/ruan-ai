@@ -8,6 +8,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { PmWorkflowModule } from './pm-workflow/pm-workflow.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { OpsModule } from './ops/ops.module';
+import { ProviderConfigModule } from './provider-config/provider-config.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { OpsModule } from './ops/ops.module';
     PmWorkflowModule,
     TelemetryModule,
     OpsModule,
+    ProviderConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService],
