@@ -7,12 +7,12 @@ The service can run either fake providers (`PROVIDER_MODE=fake`) for infrastruct
 
 ## Prerequisites
 
-| Requirement | Value |
-|---|---|
-| Google Cloud Project | `gen-lang-client-0591588109` |
-| Region | `us-central1` |
-| Required APIs | Cloud Run, Cloud Build, Artifact Registry, Secret Manager |
-| Local tools | `gcloud` CLI authenticated, Docker (for local build verification) |
+| Requirement          | Value                                                             |
+| -------------------- | ----------------------------------------------------------------- |
+| Google Cloud Project | `gen-lang-client-0591588109`                                      |
+| Region               | `us-central1`                                                     |
+| Required APIs        | Cloud Run, Cloud Build, Artifact Registry, Secret Manager         |
+| Local tools          | `gcloud` CLI authenticated, Docker (for local build verification) |
 
 Confirm APIs are enabled:
 
@@ -123,15 +123,15 @@ For automated deployments, use the Cloud Build pipeline in `cloudbuild.yaml`. Th
 
 ### What each flag does
 
-| Flag | Purpose |
-|---|---|
-| `--source=.` | Builds image via Cloud Build using the Dockerfile |
-| `--set-env-vars=PROVIDER_MODE=fake` | Fake-provider smoke mode uses no live GitHub/Gemini calls |
-| `--set-secrets=GITHUB_WEBHOOK_SECRET=GITHUB_WEBHOOK_SECRET:latest` | Mounts the Secret Manager secret as an env var |
-| `--allow-unauthenticated` | Allows GitHub webhook POST requests without IAM auth |
-| `--port=8080` | Tells Cloud Run which port the container listens on |
-| `--min-instances=0` | Scales to zero when idle (cost optimization for staging) |
-| `--max-instances=2` | Limits scaling for staging |
+| Flag                                                               | Purpose                                                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------- |
+| `--source=.`                                                       | Builds image via Cloud Build using the Dockerfile         |
+| `--set-env-vars=PROVIDER_MODE=fake`                                | Fake-provider smoke mode uses no live GitHub/Gemini calls |
+| `--set-secrets=GITHUB_WEBHOOK_SECRET=GITHUB_WEBHOOK_SECRET:latest` | Mounts the Secret Manager secret as an env var            |
+| `--allow-unauthenticated`                                          | Allows GitHub webhook POST requests without IAM auth      |
+| `--port=8080`                                                      | Tells Cloud Run which port the container listens on       |
+| `--min-instances=0`                                                | Scales to zero when idle (cost optimization for staging)  |
+| `--max-instances=2`                                                | Limits scaling for staging                                |
 
 ## Post-Deploy Verification
 
@@ -193,11 +193,11 @@ gcloud run services logs read ruan-ai-staging `
 
 ### Common issues
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| Container fails to start | Missing `GITHUB_WEBHOOK_SECRET` | Verify secret exists in Secret Manager |
-| 503 on first request | Cold start (scale-from-zero) | Retry after a few seconds; set `--min-instances=1` if unacceptable |
-| Build fails | Node version mismatch | Dockerfile pins `node:22-alpine`; ensure `package-lock.json` is committed |
+| Symptom                  | Cause                           | Fix                                                                       |
+| ------------------------ | ------------------------------- | ------------------------------------------------------------------------- |
+| Container fails to start | Missing `GITHUB_WEBHOOK_SECRET` | Verify secret exists in Secret Manager                                    |
+| 503 on first request     | Cold start (scale-from-zero)    | Retry after a few seconds; set `--min-instances=1` if unacceptable        |
+| Build fails              | Node version mismatch           | Dockerfile pins `node:22-alpine`; ensure `package-lock.json` is committed |
 
 ## Updating the Deployment
 

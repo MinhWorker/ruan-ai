@@ -1,7 +1,7 @@
 name: Feature
 description: Request a scoped product or engineering feature.
-title: "[Feature]: "
-labels: ["type:feature", "status:triage"]
+title: '[Feature]: '
+labels: ['type:feature', 'status:triage']
 body:
   - type: textarea
     id: problem
@@ -30,7 +30,7 @@ body:
       label: Acceptance Criteria
       description: List the observable requirements that prove the feature is done.
       placeholder: |
-        - 
+        -
     validations:
       required: true
   - type: textarea
