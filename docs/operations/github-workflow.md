@@ -82,15 +82,26 @@ To enforce the workflow safely, the repository owner must manually configure the
 Current observed settings as of 2026-06-30:
 
 - Repository rulesets: none.
-- `main` branch protection: not configured.
-- `staging` branch protection: not configured.
-- `develop` branch protection: not configured.
+- Repository merge settings: squash merge enabled; merge commits and rebase
+  merges disabled; delete head branches after merge enabled.
+- `main` branch protection: configured with required pull request review
+  count 1, required status checks disabled for now, force pushes disabled,
+  deletions disabled, admin enforcement disabled.
+- `staging` branch protection: configured with required pull request review
+  count 1, required status checks disabled for now, force pushes disabled,
+  deletions disabled, admin enforcement disabled.
+- `develop` branch protection: configured with required pull request review
+  count 1, required status checks disabled for now, force pushes disabled,
+  deletions disabled, admin enforcement disabled.
 
-Until these settings are applied, the workflow is enforced by docs, PR review, and owner discipline only.
+Admin enforcement is intentionally disabled so the repository owner retains an
+emergency recovery path. Normal contributors and agents should still use pull
+requests for all protected branches.
 
 ### `develop`
 
 - **Require pull request before merging**
+- **Require approvals:** 1.
 - **Require status checks to pass before merging only after matching checks exist in GitHub.**
   - Current baseline: local verification evidence in the PR template remains required until a dedicated `develop` CI workflow exists.
   - Future recommended required checks:
@@ -104,7 +115,8 @@ Until these settings are applied, the workflow is enforced by docs, PR review, a
 ### `staging`
 
 - **Require pull request before merging**
-- **Require status checks to pass before merging:**
+- **Require approvals:** 1.
+- **Require status checks to pass before merging only after matching checks exist in GitHub:**
   - Status checks should include `Staging Deployment Status` after GitHub has observed it on the `staging` branch.
   - Cloud Build remains authoritative for final deploy success; the GitHub Actions check is a visibility and local-validation layer unless a future Workload Identity Federation upgrade changes this.
 - **Do not allow direct pushes.**
@@ -113,6 +125,7 @@ Until these settings are applied, the workflow is enforced by docs, PR review, a
 
 - **Require pull request before merging**
 - **Require approvals:** 1 (Must be from a repository owner or designated release manager).
+- **Require status checks to pass before merging only after release checks are defined and observed in GitHub.**
 - **Do not allow direct pushes.**
 
 ### Tags
