@@ -82,7 +82,9 @@ Build:
 - real Google AI Studio adapter,
 - provider-mode config gating,
 - pagination and idempotent comment hardening,
-- credential-backed live integration tests gated by explicit env vars.
+- credential-backed live integration tests gated by explicit env vars,
+- multi-repository provider configuration storage (Issue #15),
+- Google Cloud Gemini Enterprise Agent Platform API provider implementation (formerly Vertex AI; Issue #45).
 
 Exit criteria:
 

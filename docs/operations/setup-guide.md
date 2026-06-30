@@ -31,10 +31,23 @@ Before running the application in real mode, the project owner must provision an
 7. Generate a **Private Key** and download the `.pem` file.
 8. Note the **App ID**.
 
-## Google AI Studio
+## AI Provider Setup
+
+Ruan AI supports both a single-tenant fallback mode (using an app-level API key) and a multi-tenant, repository-scoped configuration mode.
+
+**For single-tenant / simple setup (Google AI Studio only):**
 
 1. Go to Google AI Studio (aistudio.google.com).
 2. Get an API key.
+3. This key will be set as the `GOOGLE_AI_STUDIO_API_KEY` environment variable.
+
+**For multi-repository setups (Google AI Studio and Google Cloud Gemini Enterprise Agent Platform API):**
+
+- Provider configuration is resolved per repository or installation.
+- Real secrets must be stored securely in an external secret store (e.g., Google Cloud Secret Manager).
+- The application database stores configuration properties and Secret Manager references.
+- Secrets must **never** be checked into repository `.ruan-ai.yml` files, posted in GitHub issues, or stored as plain text in the application database.
+- Google Cloud Gemini Enterprise Agent Platform API (formerly Vertex AI) requires Workload Identity Federation or service account impersonation, not just an API key. Static service account JSON keys are a last-resort legacy option only and must require explicit owner approval plus Secret Manager storage.
 
 ## Environment Variables
 

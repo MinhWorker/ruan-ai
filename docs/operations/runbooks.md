@@ -92,7 +92,7 @@
 2. Ensure the GitHub App is actually installed in the target repository (`owner/repo`).
 3. If using `GITHUB_INSTALLATION_ID` override, ensure it matches the actual installation ID for the repository.
 
-## 8. Provider Mode Configuration Errors
+## 9. Provider Mode Configuration Errors
 
 **Scenario:** App crashes on startup complaining about missing configuration.
 **Runbook:**
@@ -100,3 +100,14 @@
 1. Check `PROVIDER_MODE` environment variable.
 2. If `PROVIDER_MODE=real`, ensure all required real-mode configuration (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GOOGLE_AI_STUDIO_API_KEY`) is set.
 3. Review `.env` and compare with `.env.example`.
+
+## 10. Provider Configuration Failures
+
+**Scenario:** Job fails fast and telemetry shows `provider_resolution_failure` or `provider_auth_failure`. For explicit command workflows, a generic comment may be posted to GitHub indicating AI provider configuration is missing or invalid. Background event workflows should record telemetry and avoid noisy comments unless a future policy explicitly allows them.
+**Runbook:**
+
+1. Check the `ProviderConfig` database records for the specific `installationId` and `repositoryId`.
+2. If the configuration is missing, instruct the repository administrator to configure their AI provider.
+3. If using AI Studio, verify the Secret Manager reference exists and the application has `Secret Manager Secret Accessor` IAM permissions for that specific secret.
+4. If using Google Cloud Gemini Enterprise Agent Platform API (formerly Vertex AI), verify the `project`, `location`, and Workload Identity Federation / service account impersonation settings are correct. Ensure the service account has the necessary Google Cloud AI permissions. If a static service account JSON key is used as a legacy fallback, verify it is stored only in Secret Manager and has explicit owner approval.
+5. Check if the app-level fallback is disabled or missing while the repository lacks explicit configuration.
