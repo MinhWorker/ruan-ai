@@ -40,6 +40,10 @@ export class FollowUpService {
     return this.repository.findPendingByIssue(issueNumber, owner, repo);
   }
 
+  async getPendingDueBefore(dueAt: Date): Promise<FollowUpRecord[]> {
+    return this.repository.findPendingDueBefore(dueAt);
+  }
+
   async cancelPendingForIssue(
     issueNumber: number,
     owner: string,

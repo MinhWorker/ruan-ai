@@ -111,4 +111,40 @@ describe('Config Validation', () => {
       /JOB_EXECUTION_MODE must be either "inline" or "queued"/,
     );
   });
+
+  it('should validate job storage mode and default to memory', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+    };
+    const config = validateConfig(env);
+    expect(config.JOB_STORAGE_MODE).toBe('memory');
+  });
+
+  it('should allow JOB_STORAGE_MODE=postgres and require DATABASE_URL', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+      JOB_STORAGE_MODE: 'postgres',
+    };
+    expect(() => validateConfig(env)).toThrow(
+      /DATABASE_URL is required when JOB_STORAGE_MODE is "postgres"/,
+    );
+
+    const envWithDb = {
+      ...env,
+      DATABASE_URL: 'postgresql://localhost:5432/db',
+    };
+    const config = validateConfig(envWithDb);
+    expect(config.JOB_STORAGE_MODE).toBe('postgres');
+    expect(config.DATABASE_URL).toBe('postgresql://localhost:5432/db');
+  });
+
+  it('should fail if JOB_STORAGE_MODE is invalid', () => {
+    const env = {
+      GITHUB_WEBHOOK_SECRET: 'secret',
+      JOB_STORAGE_MODE: 'invalid',
+    };
+    expect(() => validateConfig(env)).toThrow(
+      /JOB_STORAGE_MODE must be either "memory" or "postgres"/,
+    );
+  });
 });
