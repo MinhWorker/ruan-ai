@@ -36,6 +36,30 @@ describe('InMemoryFollowUpRecordRepository', () => {
     expect(pending[0].id).toBe('1');
   });
 
+  it('should find pending records due before a cutoff', async () => {
+    const now = new Date('2026-06-30T00:00:00.000Z');
+    await repo.save({
+      ...mockRecord,
+      id: 'due',
+      dueAt: new Date('2026-06-29T23:00:00.000Z'),
+    });
+    await repo.save({
+      ...mockRecord,
+      id: 'future',
+      dueAt: new Date('2026-06-30T01:00:00.000Z'),
+    });
+    await repo.save({
+      ...mockRecord,
+      id: 'completed-due',
+      status: 'completed',
+      dueAt: new Date('2026-06-29T22:00:00.000Z'),
+    });
+
+    const due = await repo.findPendingDueBefore(now);
+
+    expect(due.map((record) => record.id)).toEqual(['due']);
+  });
+
   it('should update status', async () => {
     await repo.save(mockRecord);
     const updated = await repo.updateStatus('1', 'inactive');

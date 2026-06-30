@@ -16,6 +16,7 @@ export abstract class FollowUpRecordRepository {
     repositoryOwner: string,
     repositoryName: string,
   ): Promise<FollowUpRecord[]>;
+  abstract findPendingDueBefore(dueAt: Date): Promise<FollowUpRecord[]>;
   abstract updateStatus(
     id: string,
     status: FollowUpStatus,
