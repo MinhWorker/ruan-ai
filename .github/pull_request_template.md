@@ -1,18 +1,23 @@
 ## Summary
 
-- 
+-
 
 ## Linked Issue
 
-Closes #
+Closes/Refs #
+
+## Target Branch Justification
+
+- Target Branch:
+- Justification:
 
 ## Scope
 
-- 
+-
 
 ## Non-Goals
 
-- 
+-
 
 ## Verification
 
@@ -23,7 +28,7 @@ Closes #
 
 If any check was skipped, explain why:
 
-- 
+-
 
 ## Deployment Impact
 
@@ -40,4 +45,4 @@ If any check was skipped, explain why:
 
 ## Reviewer Notes
 
-- 
+-

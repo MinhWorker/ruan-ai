@@ -1,7 +1,7 @@
 name: Bug
 description: Report a reproducible bug or regression.
-title: "[Bug]: "
-labels: ["type:bug", "status:triage"]
+title: '[Bug]: '
+labels: ['type:bug', 'status:triage']
 body:
   - type: textarea
     id: observed
@@ -25,7 +25,7 @@ body:
       placeholder: |
         1. 
         2. 
-        3. 
+        3.
     validations:
       required: true
   - type: textarea

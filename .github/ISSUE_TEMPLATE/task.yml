@@ -1,7 +1,7 @@
 name: Task
 description: Track a bounded implementation, documentation, or operations task.
-title: "[Task]: "
-labels: ["type:task", "status:triage"]
+title: '[Task]: '
+labels: ['type:task', 'status:triage']
 body:
   - type: textarea
     id: objective
@@ -32,7 +32,7 @@ body:
     attributes:
       label: Acceptance Criteria
       placeholder: |
-        - 
+        -
     validations:
       required: true
   - type: textarea
@@ -40,7 +40,7 @@ body:
     attributes:
       label: Verification
       placeholder: |
-        - 
+        -
     validations:
       required: true
   - type: dropdown
