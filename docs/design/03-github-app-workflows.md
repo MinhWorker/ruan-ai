@@ -24,6 +24,8 @@ Inputs:
 - issue title/body,
 - author association,
 - current labels,
+- parsed issue-template fields when the issue body uses markdown template
+  headings,
 - linked PRs/issues if cheaply available,
 - repository metadata and configured PM rules.
 
@@ -36,6 +38,9 @@ Output:
 - recommended next command, usually `/plan` or a human clarification.
 
 The app must not create new labels in MVP. It may apply only labels that already exist and match configured allowlists.
+When template fields are missing or contain placeholder answers such as
+`_No response_`, triage asks actionable clarification questions and recommends
+human clarification instead of advancing to planning.
 
 ## Planning
 
@@ -60,6 +65,9 @@ Output:
 - human decisions required before implementation.
 
 If the issue is underspecified, the app asks a direct question and does not produce a fake plan.
+When the issue is ready, the plan must be implementation-ready for coding
+agents: concrete task order, observable acceptance criteria, verification
+commands when available, explicit non-scope, and cited evidence.
 
 ## Task Splitting
 
@@ -75,6 +83,8 @@ Output:
 - completion evidence required.
 
 Tasks must be suitable for independent coding agents. If two tasks can run in parallel, the output must say so explicitly. If they share files or state, the output must serialize them.
+Allowed operations are limited to the policy allowlist: `create`, `edit`,
+`view`, `inspect`, and `read`.
 
 ## Status Refresh
 
@@ -120,4 +130,3 @@ Behavior:
 - remove or update app-managed active labels,
 - stop scheduled follow-ups for the issue,
 - keep historical comments intact.
-

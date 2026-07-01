@@ -24,9 +24,9 @@ const SCHEMA_CONTRACTS: Record<string, string> = {
 - "workflow": "triage"
 - "summary": non-empty string
 - "riskLevel": one of "low", "medium", "high"
-- "suggestedLabels": array of strings; use [] when no existing label clearly applies
-- "missingInformation": array of strings; use [] when nothing is missing
-- "recommendedNextCommand": one of "/plan", "human_clarification"
+- "suggestedLabels": array of existing repository label strings; be conservative and use [] when no existing label clearly applies
+- "missingInformation": array of actionable missing fields or questions; use [] when nothing is missing
+- "recommendedNextCommand": one of "/plan", "human_clarification"; use "human_clarification" when required template fields or acceptance details are missing
 - "commentBody": non-empty markdown string for a public GitHub issue comment
 - "confidence": one of "low", "medium", "high"
 - "assumptions": array of strings; use [] when none
@@ -38,9 +38,9 @@ const SCHEMA_CONTRACTS: Record<string, string> = {
 - "scope": array of strings
 - "nonScope": array of strings
 - "dependencies": array of strings
-- "taskSequence": array of strings in dependency order
-- "acceptanceCriteria": array of strings
-- "verificationStrategy": non-empty string
+- "taskSequence": array of implementation steps in dependency order, concrete enough for a coding agent
+- "acceptanceCriteria": array of observable acceptance criteria
+- "verificationStrategy": non-empty string with concrete commands when available
 - "humanDecisions": array of strings; use [] when no human decision is required
 - "commentBody": non-empty markdown string for a public GitHub issue comment
 - "confidence": one of "low", "medium", "high"
@@ -56,9 +56,9 @@ const SCHEMA_CONTRACTS: Record<string, string> = {
   - "filesToInspect": array of strings
   - "allowedOperations": array of strings; each must be one of "create", "edit", "view", "inspect", "read"
   - "dependencies": array of task id strings that reference existing task IDs in this same output
-  - "parallelizationGuidance": string
+  - "parallelizationGuidance": string explaining whether this task can run in parallel or must be serialized
   - "verificationCommands": array of strings
-  - "completionEvidence": string
+  - "completionEvidence": string describing what evidence the agent must report
   - "ownerType": one of "human", "coding_agent", "blocked"
 - "commentBody": non-empty markdown string for a public GitHub issue comment
 - "confidence": one of "low", "medium", "high"

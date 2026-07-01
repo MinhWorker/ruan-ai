@@ -85,15 +85,30 @@ export class FakeTriageAiClient extends AiClient {
       summary = 'Issue requires further classification and information.';
     }
 
-    // Only suggest labels that actually exist in the repository
-    suggestedLabels = suggestedLabels.filter((l) => repoLabelNames.has(l));
-
     const missingInformation: string[] = [];
+    const missingTemplateFields =
+      context.templateFields?.filter((field) => field.missing) ?? [];
+
+    for (const field of missingTemplateFields) {
+      missingInformation.push(
+        `${field.name} is missing - ${this.describeTemplateFieldNeed(field.name)}`,
+      );
+    }
+
     if (!context.issue.body || context.issue.body.trim().length < 20) {
       missingInformation.push(
         'Issue body is too short - please provide more details about the problem or request.',
       );
     }
+
+    if (missingInformation.length > 0) {
+      suggestedLabels.push('ruan:needs-info');
+    }
+
+    // Only suggest labels that actually exist in the repository.
+    suggestedLabels = [...new Set(suggestedLabels)].filter((l) =>
+      repoLabelNames.has(l),
+    );
 
     const commentBody = this.buildCommentBody(
       summary,
@@ -118,8 +133,29 @@ export class FakeTriageAiClient extends AiClient {
           source: 'issue_title',
           content: context.issue.title,
         },
+        ...missingTemplateFields.map((field) => ({
+          source: `issue_template_field:${field.name}`,
+          content: field.value,
+        })),
       ],
     };
+  }
+
+  private describeTemplateFieldNeed(fieldName: string): string {
+    const normalized = fieldName.toLowerCase();
+    if (normalized.includes('expected')) {
+      return 'describe what should happen.';
+    }
+    if (normalized.includes('actual')) {
+      return 'describe what happened instead.';
+    }
+    if (normalized.includes('reproduction') || normalized.includes('steps')) {
+      return 'provide concrete steps to reproduce.';
+    }
+    if (normalized.includes('acceptance')) {
+      return 'list the acceptance criteria.';
+    }
+    return 'provide a concrete answer for this template field.';
   }
 
   private buildCommentBody(
@@ -177,25 +213,49 @@ export class FakeTriageAiClient extends AiClient {
       context.issue.body.toLowerCase().includes('vague') ||
       context.issue.body.length < 20;
 
-    const problemStatement = `Execute planning workflow for: ${context.issue.title}`;
+    const problemStatement = `Implement the requested workflow change for: ${context.issue.title}`;
     const scope = isUnderspecified
       ? []
-      : ['Implement milestone features', 'Add unit and integration tests'];
-    const nonScope = isUnderspecified ? [] : ['Deploy code to production'];
+      : [
+          'Update workflow context builders and AI behavior for the requested issue.',
+          'Add focused tests for the new planning behavior.',
+          'Update controlling docs when behavior changes.',
+        ];
+    const nonScope = isUnderspecified
+      ? []
+      : [
+          'Production deployment or release tagging',
+          'New GitHub permissions or persistence unless explicitly required',
+          'Direct coding-agent execution',
+        ];
     const dependencies = isUnderspecified
       ? []
-      : ['Milestone 2 triage baseline'];
+      : [
+          'Read controlling design and workflow docs before implementation.',
+          'Preserve GitHub write policy and schema validation boundaries.',
+        ];
     const taskSequence = isUnderspecified
       ? []
       : [
-          '1. Setup interface files',
-          '2. Implement service logic',
-          '3. Run verification tests',
+          '1. Inspect relevant workflow/context/schema files and existing tests.',
+          '2. Add failing tests for the requested behavior.',
+          '3. Implement narrowly scoped code changes behind existing service boundaries.',
+          '4. Update design documentation if workflow context or output behavior changes.',
+          '5. Run build, lint, unit, and e2e verification.',
         ];
     const acceptanceCriteria = isUnderspecified
       ? []
-      : ['All unit tests pass', 'Linting succeeds'];
-    const verificationStrategy = 'Run local test commands defined in roadmap.';
+      : [
+          'Output asks actionable questions when required details are missing.',
+          'GitHub-facing comments remain policy-compatible and evidence-based.',
+          'Focused tests cover the new behavior and full verification passes.',
+        ];
+    const verificationStrategy = [
+      "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run build",
+      '$env:GITHUB_WEBHOOK_SECRET=\'test-secret\'; npx eslint "{src,apps,libs,test}/**/*.ts" --max-warnings=0',
+      "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npx jest --runInBand",
+      "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run test:e2e",
+    ].join('\n');
     const humanDecisions = isUnderspecified
       ? [
           'What is the detailed requirement scope?',
@@ -219,10 +279,37 @@ export class FakeTriageAiClient extends AiClient {
       for (const s of scope) {
         commentLines.push(`- ${s}`);
       }
+      commentLines.push('\n### Non-Scope');
+      for (const item of nonScope) {
+        commentLines.push(`- ${item}`);
+      }
+      commentLines.push('\n### Dependencies');
+      for (const dependency of dependencies) {
+        commentLines.push(`- ${dependency}`);
+      }
       commentLines.push('\n### Task Sequence');
       for (const t of taskSequence) {
         commentLines.push(`- ${t}`);
       }
+      commentLines.push('\n### Acceptance Criteria');
+      for (const criterion of acceptanceCriteria) {
+        commentLines.push(`- ${criterion}`);
+      }
+      commentLines.push('\n### Verification');
+      commentLines.push(verificationStrategy);
+    }
+
+    const evidence = [
+      {
+        source: 'issue_title',
+        content: context.issue.title,
+      },
+    ];
+    if (context.priorTriageComment) {
+      evidence.push({
+        source: 'prior_triage_comment',
+        content: context.priorTriageComment,
+      });
     }
 
     return {
@@ -238,12 +325,7 @@ export class FakeTriageAiClient extends AiClient {
       commentBody: commentLines.join('\n'),
       confidence: isUnderspecified ? 'low' : 'high',
       assumptions: ['No prior plan exists'],
-      evidence: [
-        {
-          source: 'issue_title',
-          content: context.issue.title,
-        },
-      ],
+      evidence,
     };
   }
 
@@ -316,30 +398,73 @@ export class FakeTriageAiClient extends AiClient {
         },
       );
     } else {
-      // Standard sequential tasks (serialized explicitly)
       tasks.push(
         {
           id: 'task-1',
-          title: 'Write interfaces',
-          objective: 'Create ts files under interfaces folder',
-          filesToInspect: ['src/ai/interfaces/'],
-          allowedOperations: ['create'],
+          title: 'Inspect workflow surface',
+          objective:
+            'Read the active plan and inspect the workflow, context, schema, and policy files that control the requested behavior.',
+          filesToInspect: [
+            'src/pm-workflow/services/',
+            'src/context/builders/',
+            'src/context/interfaces/',
+            'src/ai/interfaces/',
+            'src/ai/schemas/',
+            'src/policy/services/',
+          ],
+          allowedOperations: ['read', 'inspect'],
           dependencies: [],
-          parallelizationGuidance: 'No parallel tasks.',
-          verificationCommands: ['npm run build'],
-          completionEvidence: 'Files compile.',
+          parallelizationGuidance:
+            'Run before implementation tasks because it defines the exact files and constraints.',
+          verificationCommands: ['npx jest --listTests'],
+          completionEvidence:
+            'Notes identify the exact files and tests that need edits.',
           ownerType: 'coding_agent',
         },
         {
           id: 'task-2',
-          title: 'Write schemas',
-          objective: 'Write schema files',
-          filesToInspect: ['src/ai/schemas/'],
-          allowedOperations: ['create'],
-          dependencies: ['task-1'], // Serialized dependency
-          parallelizationGuidance: 'Depends on task-1.',
-          verificationCommands: ['npm run build'],
-          completionEvidence: 'Schemas compiled.',
+          title: 'Implement focused workflow behavior',
+          objective:
+            'Add failing tests first, then implement the scoped workflow/context/AI behavior from the active plan.',
+          filesToInspect: [
+            'src/ai/fake/fake-triage-ai-client.ts',
+            'src/ai/fake/fake-triage-ai-client.spec.ts',
+            'src/context/builders/',
+            'src/context/interfaces/',
+          ],
+          allowedOperations: ['create', 'edit', 'read'],
+          dependencies: ['task-1'],
+          parallelizationGuidance:
+            'Serialized after task-1 because it may edit the same workflow and context surfaces.',
+          verificationCommands: [
+            "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npx jest src/ai/fake/fake-triage-ai-client.spec.ts --runInBand",
+          ],
+          completionEvidence:
+            'Focused tests fail before implementation and pass after implementation.',
+          ownerType: 'coding_agent',
+        },
+        {
+          id: 'task-3',
+          title: 'Verify and document handoff',
+          objective:
+            'Run verification commands and update docs if the workflow contract or context strategy changed.',
+          filesToInspect: [
+            'docs/design/03-github-app-workflows.md',
+            'docs/design/05-ai-orchestration.md',
+            'docs/operations/github-workflow.md',
+          ],
+          allowedOperations: ['read'],
+          dependencies: ['task-2'],
+          parallelizationGuidance:
+            'Serialized after implementation so verification evidence matches the final diff.',
+          verificationCommands: [
+            "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run build",
+            '$env:GITHUB_WEBHOOK_SECRET=\'test-secret\'; npx eslint "{src,apps,libs,test}/**/*.ts" --max-warnings=0',
+            "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npx jest --runInBand",
+            "$env:GITHUB_WEBHOOK_SECRET='test-secret'; npm run test:e2e",
+          ],
+          completionEvidence:
+            'Build, lint, unit, and e2e verification output is captured in the PR or issue comment.',
           ownerType: 'coding_agent',
         },
       );
@@ -357,6 +482,19 @@ export class FakeTriageAiClient extends AiClient {
       if (t.dependencies.length > 0) {
         commentLines.push(`- **Dependencies:** ${t.dependencies.join(', ')}`);
       }
+      commentLines.push(
+        `- **Files to Inspect:** ${t.filesToInspect.join(', ') || 'None'}`,
+      );
+      commentLines.push(
+        `- **Allowed Operations:** ${t.allowedOperations.join(', ') || 'None'}`,
+      );
+      commentLines.push(
+        `- **Verification:** ${t.verificationCommands.join('; ') || 'None'}`,
+      );
+      commentLines.push(`- **Completion Evidence:** ${t.completionEvidence}`);
+      commentLines.push(
+        `- **Parallelization Guidance:** ${t.parallelizationGuidance}`,
+      );
     }
 
     return {
@@ -365,7 +503,14 @@ export class FakeTriageAiClient extends AiClient {
       commentBody: commentLines.join('\n'),
       confidence: 'high',
       assumptions: [],
-      evidence: [],
+      evidence: context.activePlanComment
+        ? [
+            {
+              source: 'active_plan_comment',
+              content: context.activePlanComment,
+            },
+          ]
+        : [],
     };
   }
 

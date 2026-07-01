@@ -198,7 +198,7 @@ ${JSON.stringify(context, null, 2)}
   async triage(context: IssueTriageContext): Promise<TriageOutput> {
     const prompt = this.buildWorkflowPrompt(
       'triage',
-      'Analyze the issue and propose safe triage labels and next action.',
+      'Analyze the issue template fields, propose only clearly supported existing labels, and ask actionable clarification questions when required details are missing.',
       context,
     );
     return this.generateJson<TriageOutput>(
@@ -211,7 +211,7 @@ ${JSON.stringify(context, null, 2)}
   async plan(context: IssuePlanContext): Promise<PlanOutput> {
     const prompt = this.buildWorkflowPrompt(
       'plan',
-      'Create a scoped implementation plan for the issue.',
+      'Create an implementation-ready plan with explicit scope, non-scope, dependencies, ordered tasks, acceptance criteria, verification commands, and human decisions. If the issue is underspecified, ask direct human questions instead of inventing a plan.',
       context,
     );
     return this.generateJson<PlanOutput>(
@@ -224,7 +224,7 @@ ${JSON.stringify(context, null, 2)}
   async split(context: IssueSplitContext): Promise<SplitOutput> {
     const prompt = this.buildWorkflowPrompt(
       'split',
-      'Split the active plan into dependency-aware implementation tasks.',
+      'Split the active plan into safe coding-agent handoff packets with concrete files to inspect, allowed operations from the policy allowlist, dependencies, verification commands, completion evidence, and parallelization or serialization guidance.',
       context,
     );
     return this.generateJson<SplitOutput>(

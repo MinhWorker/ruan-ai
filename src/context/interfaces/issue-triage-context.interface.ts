@@ -1,5 +1,11 @@
 import { RepositoryLabel } from '../../github-client/interfaces/github-client.interface';
 
+export interface IssueTemplateFieldContext {
+  name: string;
+  value: string;
+  missing: boolean;
+}
+
 /**
  * Bounded context packet for the issue triage workflow.
  * All fields are plain data - issue body is treated as untrusted user content.
@@ -34,6 +40,9 @@ export interface IssueTriageContext {
 
   /** Labels currently applied to this issue. */
   currentIssueLabels: string[];
+
+  /** Markdown template fields parsed from the issue body, if present. */
+  templateFields: IssueTemplateFieldContext[];
 
   /** Triage configuration. */
   config: {
