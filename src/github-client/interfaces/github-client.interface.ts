@@ -38,6 +38,40 @@ export interface IssueComment {
   createdAt: string;
 }
 
+export interface PullRequestContext {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  author: string;
+  url: string;
+  headRefName: string;
+  headSha: string;
+  baseRefName: string;
+  draft: boolean;
+  mergeableState?: string;
+  changedFiles?: number;
+  createdAt: string;
+  updatedAt: string;
+  mergedAt?: string | null;
+}
+
+export interface CheckRunContext {
+  name: string;
+  status: string;
+  conclusion?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  detailsUrl?: string | null;
+}
+
+export interface RelatedIssueContext {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  relationship: 'mentioned' | 'referenced';
+  url: string;
+}
+
 /**
  * Abstract GitHub read client for fetching repository and issue metadata.
  * Implementations: FakeGithubClient (tests/dev), real GitHub REST client (future milestones).
@@ -61,4 +95,22 @@ export abstract class GithubClient {
     repo: string,
     issueNumber: number,
   ): Promise<IssueComment[]>;
+
+  abstract getLinkedPullRequests(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<PullRequestContext[]>;
+
+  abstract getCheckRunsForRef(
+    owner: string,
+    repo: string,
+    ref: string,
+  ): Promise<CheckRunContext[]>;
+
+  abstract getRelatedIssues(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<RelatedIssueContext[]>;
 }
