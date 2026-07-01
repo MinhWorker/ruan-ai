@@ -73,7 +73,49 @@ CREATE INDEX IF NOT EXISTS follow_up_records_issue_idx
 CREATE INDEX IF NOT EXISTS follow_up_records_pending_due_at_idx
   ON follow_up_records (status, due_at)
   WHERE status = 'pending';
+
+CREATE TABLE IF NOT EXISTS workflow_states (
+  installation_id BIGINT,
+  repository_id BIGINT NOT NULL,
+  repository_owner TEXT,
+  repository_name TEXT,
+  issue_node_id TEXT,
+  issue_number INTEGER NOT NULL,
+  workflow_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  comment_id BIGINT,
+  comment_node_id TEXT,
+  marker_logical TEXT,
+  marker_version INTEGER,
+  state_version INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (repository_id, issue_number, workflow_type)
+);
+
+CREATE INDEX IF NOT EXISTS workflow_states_status_updated_at_idx
+  ON workflow_states (status, updated_at);
+
+CREATE TABLE IF NOT EXISTS workflow_events (
+  event_id TEXT PRIMARY KEY,
+  repository_id BIGINT NOT NULL,
+  issue_number INTEGER NOT NULL,
+  workflow_type TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  state_version INTEGER NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS workflow_events_issue_workflow_created_at_idx
+  ON workflow_events (repository_id, issue_number, workflow_type, created_at);
 ```
+
+`workflow_states` and `workflow_events` implement ADR 0008's durable workflow
+state model. They are separate from provider configuration tables because they
+track issue/workflow progress and audit history, not credential ownership or
+billing identity.
 
 ## Rollback
 
