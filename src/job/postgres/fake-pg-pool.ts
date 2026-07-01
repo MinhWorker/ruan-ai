@@ -1,8 +1,16 @@
-import { DbFollowUpRow, DbJobRow, PgPoolLike } from './pg-pool';
+import {
+  DbFollowUpRow,
+  DbJobRow,
+  DbWorkflowEventRow,
+  DbWorkflowStateRow,
+  PgPoolLike,
+} from './pg-pool';
 
 export class FakePgPool implements PgPoolLike {
   public readonly jobs = new Map<string, DbJobRow>();
   public readonly followUps = new Map<string, DbFollowUpRow>();
+  public readonly workflowStates = new Map<string, DbWorkflowStateRow>();
+  public readonly workflowEvents = new Map<string, DbWorkflowEventRow>();
 
   query<T = unknown>(
     text: string,
@@ -190,6 +198,112 @@ export class FakePgPool implements PgPoolLike {
       });
     }
 
+    // ----------------------------------------------------
+    // WORKFLOW_STATES TABLE QUERIES
+    // ----------------------------------------------------
+
+    if (
+      sql.startsWith('SELECT') &&
+      sql.includes('FROM workflow_states') &&
+      sql.includes('repository_id = $1') &&
+      sql.includes('issue_number = $2') &&
+      sql.includes('workflow_type = $3')
+    ) {
+      const key = makeWorkflowKey(
+        params[0] as number,
+        params[1] as number,
+        params[2] as string,
+      );
+      const row = this.workflowStates.get(key);
+      return Promise.resolve({
+        rows: (row ? [row] : []) as unknown as T[],
+        rowCount: row ? 1 : 0,
+      });
+    }
+
+    if (sql.startsWith('INSERT INTO workflow_states')) {
+      const key = makeWorkflowKey(
+        params[1] as number,
+        params[5] as number,
+        params[6] as string,
+      );
+      const existing = this.workflowStates.get(key);
+      const row: DbWorkflowStateRow = {
+        installation_id: params[0] as number | null,
+        repository_id: params[1] as number,
+        repository_owner: params[2] as string | null,
+        repository_name: params[3] as string | null,
+        issue_node_id: params[4] as string | null,
+        issue_number: params[5] as number,
+        workflow_type: params[6] as string,
+        status: params[7] as string,
+        payload: params[8] as Record<string, unknown>,
+        comment_id: params[9] as number | null,
+        comment_node_id: params[10] as string | null,
+        marker_logical: params[11] as string | null,
+        marker_version: params[12] as number | null,
+        state_version: existing ? existing.state_version + 1 : 1,
+        created_at: existing?.created_at ?? (params[13] as Date),
+        updated_at: params[14] as Date,
+      };
+      this.workflowStates.set(key, row);
+      return Promise.resolve({
+        rows: [row] as unknown as T[],
+        rowCount: 1,
+      });
+    }
+
+    // ----------------------------------------------------
+    // WORKFLOW_EVENTS TABLE QUERIES
+    // ----------------------------------------------------
+
+    if (
+      sql.startsWith('SELECT') &&
+      sql.includes('FROM workflow_events') &&
+      sql.includes('repository_id = $1') &&
+      sql.includes('issue_number = $2') &&
+      sql.includes('workflow_type = $3')
+    ) {
+      const rows = Array.from(this.workflowEvents.values())
+        .filter(
+          (row) =>
+            row.repository_id === params[0] &&
+            row.issue_number === params[1] &&
+            row.workflow_type === params[2],
+        )
+        .sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+      return Promise.resolve({
+        rows: rows as unknown as T[],
+        rowCount: rows.length,
+      });
+    }
+
+    if (sql.startsWith('INSERT INTO workflow_events')) {
+      const row: DbWorkflowEventRow = {
+        event_id: params[0] as string,
+        repository_id: params[1] as number,
+        issue_number: params[2] as number,
+        workflow_type: params[3] as string,
+        event_type: params[4] as string,
+        state_version: params[5] as number,
+        payload: params[6] as Record<string, unknown>,
+        created_at: params[7] as Date,
+      };
+      this.workflowEvents.set(row.event_id, row);
+      return Promise.resolve({
+        rows: [row] as unknown as T[],
+        rowCount: 1,
+      });
+    }
+
     throw new Error(`Unsupported query in FakePgPool: ${text}`);
   }
+}
+
+function makeWorkflowKey(
+  repositoryId: number,
+  issueNumber: number,
+  workflowType: string,
+): string {
+  return `${repositoryId}:${issueNumber}:${workflowType}`;
 }
