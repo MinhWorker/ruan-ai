@@ -4,6 +4,7 @@ import { TelemetryService } from '../../telemetry/services/telemetry.service';
 import { RateLimitTrackerService } from '../../telemetry/services/rate-limit-tracker.service';
 import { IssueTriageContext } from '../../context/interfaces/issue-triage-context.interface';
 import { IssueStatusContext } from '../../context/interfaces/issue-status-context.interface';
+import { IssueBlockerContext } from '../../context/interfaces/issue-blocker-context.interface';
 
 describe('FakeTriageAiClient', () => {
   let client: FakeTriageAiClient;
@@ -103,6 +104,59 @@ describe('FakeTriageAiClient', () => {
       expect.arrayContaining([
         expect.objectContaining({
           source: 'check_run:unit-tests',
+          type: 'observed',
+        }),
+      ]),
+    );
+  });
+
+  it('should ground blocker analysis in deployment evidence when available', async () => {
+    const context: IssueBlockerContext = {
+      issue: {
+        number: 1,
+        title: 'Staging deploy blocked',
+        body: 'Deploy is failing',
+        author: 'user',
+        createdAt: '2026-01-01T00:00:00Z',
+        labels: [],
+      },
+      recentComments: [],
+      blockerTriggeringText: '@ruangm-ai /blocker staging deploy failed',
+      linkedPullRequests: [],
+      checkRuns: [
+        {
+          pullRequestNumber: 42,
+          ref: 'abc123',
+          name: 'Cloud Build staging',
+          status: 'completed',
+          conclusion: 'failure',
+          detailsUrl: 'https://console.cloud.google.com/cloud-build/builds/1',
+        },
+      ],
+      relatedIssues: [],
+      deploymentSignals: [
+        {
+          source: 'check_run:Cloud Build staging',
+          status: 'failure',
+          summary:
+            'PR #42 deployment signal Cloud Build staging: completed/failure',
+          url: 'https://console.cloud.google.com/cloud-build/builds/1',
+        },
+      ],
+      unavailableContextSources: [],
+    };
+
+    const result = await client.blocker(context);
+
+    expect(result.likelyCause).toBe('Deployment signal is failing');
+    expect(result.nextProvingMethod).toBe(
+      'Inspect check_run:Cloud Build staging and fix the failing deployment step',
+    );
+    expect(result.directHumanQuestions).toEqual([]);
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: 'check_run:Cloud Build staging',
           type: 'observed',
         }),
       ]),
