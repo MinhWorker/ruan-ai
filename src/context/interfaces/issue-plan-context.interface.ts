@@ -1,7 +1,5 @@
-import {
-  RepositoryLabel,
-  IssueComment,
-} from '../../github-client/interfaces/github-client.interface';
+import { RepositoryLabel } from '../../github-client/interfaces/github-client.interface';
+import { ContextIssueComment } from '../comment-context';
 
 export interface IssuePlanContext {
   eventType: 'comment.created';
@@ -22,7 +20,7 @@ export interface IssuePlanContext {
   };
   repositoryLabels: RepositoryLabel[];
   currentIssueLabels: string[];
-  recentComments: IssueComment[];
+  recentComments: ContextIssueComment[];
   priorTriageComment?: string;
   priorPlanComment?: string;
   config: {

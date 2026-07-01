@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
 import { IssueBlockerContext } from '../interfaces/issue-blocker-context.interface';
+import { buildIssueCommentContext } from '../comment-context';
 
 @Injectable()
 export class IssueBlockerContextBuilder {
@@ -24,38 +25,33 @@ export class IssueBlockerContextBuilder {
       params.issueNumber,
     );
 
-    const recentComments = comments.slice(-10); // Last 10 comments
+    const commentContext = buildIssueCommentContext(comments);
 
-    const activePlanComment = comments
+    const activePlanComment = commentContext.appComments
       .slice()
       .reverse()
       .find(
-        (c) =>
-          c.body.includes('<!-- ruan-ai:workflow=plan') &&
-          c.body.includes('logical=active-plan'),
+        (c) => c.workflowMarker === 'plan' && c.logicalMarker === 'active-plan',
       )?.body;
 
-    const activeSplitComment = comments
+    const activeSplitComment = commentContext.appComments
       .slice()
       .reverse()
       .find(
-        (c) =>
-          c.body.includes('<!-- ruan-ai:workflow=split') &&
-          c.body.includes('logical=task-split'),
+        (c) => c.workflowMarker === 'split' && c.logicalMarker === 'task-split',
       )?.body;
 
-    const activeStatusComment = comments
+    const activeStatusComment = commentContext.appComments
       .slice()
       .reverse()
       .find(
         (c) =>
-          c.body.includes('<!-- ruan-ai:workflow=status') &&
-          c.body.includes('logical=current-status'),
+          c.workflowMarker === 'status' && c.logicalMarker === 'current-status',
       )?.body;
 
     return {
       issue,
-      recentComments,
+      recentComments: commentContext.recentComments,
       activePlanComment,
       activeSplitComment,
       activeStatusComment,

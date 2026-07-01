@@ -52,6 +52,34 @@ Context must be bounded and cited. The context packet includes:
 
 Secrets, `.env` files, credentials, private keys, and unrelated large files are excluded.
 
+### Issue Comment Context Strategy
+
+Workflow context builders use one shared issue-comment classification strategy
+before comments are sent to a model:
+
+- `human_comment`: non-bot issue discussion.
+- `human_command`: non-bot comments that mention the app and request a supported
+  slash command.
+- `app_generated`: app-authored workflow comments with `ruan-ai:workflow`
+  markers.
+- `bot_command`: bot-authored comments containing supported slash commands.
+- `bot_comment`: other bot-authored comments.
+
+Recent discussion context includes only `human_comment` and `human_command`
+comments, capped to the latest 10 entries. Generated app workflow comments are
+not mixed into recent discussion; they are selected separately by workflow marker
+when a workflow needs prior app state. Bot-authored command comments are excluded
+from recent discussion to avoid prompt bloat and accidental command injection
+through generated text.
+
+| Workflow | Comment strategy                                                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Triage   | No issue comments by default; uses issue metadata and repository labels.                                                             |
+| Plan     | Latest 10 human discussion/command comments plus latest prior triage and plan app marker comments.                                   |
+| Split    | Latest 10 human discussion/command comments plus the latest active plan app marker comment.                                          |
+| Status   | Latest 10 human discussion/command comments plus latest app marker comments and scheduled follow-ups.                                |
+| Blocker  | Latest 10 human discussion/command comments plus active plan, split, and status app marker comments and the triggering blocker text. |
+
 ## Prompt Injection Rules
 
 User issue text and comments are untrusted. Prompts must state:

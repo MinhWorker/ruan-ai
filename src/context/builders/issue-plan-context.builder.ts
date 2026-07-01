@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
 import { IssuePlanContext } from '../interfaces/issue-plan-context.interface';
+import { buildIssueCommentContext } from '../comment-context';
 
 const MAX_BODY_LENGTH = 10_000;
 
@@ -36,15 +37,17 @@ export class IssuePlanContextBuilder {
         ? issue.body.slice(0, MAX_BODY_LENGTH) + '\n[TRUNCATED]'
         : issue.body;
 
-    // Identify prior triage/plan comments from the issue comment history
+    const commentContext = buildIssueCommentContext(comments);
+
+    // Identify prior triage/plan comments from generated app comment history.
     let priorTriageComment: string | undefined;
     let priorPlanComment: string | undefined;
 
-    for (const comment of comments) {
-      if (comment.body.includes('ruan-ai:workflow=triage')) {
+    for (const comment of commentContext.appComments) {
+      if (comment.workflowMarker === 'triage') {
         priorTriageComment = comment.body;
       }
-      if (comment.body.includes('ruan-ai:workflow=plan')) {
+      if (comment.workflowMarker === 'plan') {
         priorPlanComment = comment.body;
       }
     }
@@ -68,7 +71,7 @@ export class IssuePlanContextBuilder {
       },
       repositoryLabels,
       currentIssueLabels: issue.labels,
-      recentComments: comments,
+      recentComments: commentContext.recentComments,
       priorTriageComment,
       priorPlanComment,
       config: {},
