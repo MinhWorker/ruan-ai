@@ -3,6 +3,8 @@ import { JobService } from '../../job/job.service';
 import { FollowUpService } from '../../job/follow-up.service';
 import { GithubWriter } from '../../github-writer/interfaces/github-writer.interface';
 import { Job } from '../../job/interfaces/job.interface';
+import { WorkflowStateRepository } from '../../workflow-state/workflow-state.repository';
+import { randomUUID } from 'crypto';
 
 function stopMarker(issueNumber: number): string {
   return `<!-- ruan-ai:workflow=stop issue=${issueNumber} logical=paused version=1 -->`;
@@ -23,6 +25,7 @@ export class StopWorkflowService {
     private readonly jobService: JobService,
     private readonly followUpService: FollowUpService,
     private readonly githubWriter: GithubWriter,
+    private readonly workflowStateRepository: WorkflowStateRepository,
   ) {}
 
   async execute(job: Job): Promise<StopWorkflowResult> {
@@ -56,6 +59,47 @@ export class StopWorkflowService {
         marker,
         commentBody,
       );
+
+      if (!job.repositoryId) {
+        throw new Error(`Job ${job.jobId} is missing repository ID metadata`);
+      }
+
+      const now = new Date();
+      const savedState = await this.workflowStateRepository.saveState({
+        installationId: job.installationId,
+        repositoryId: job.repositoryId,
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber: job.issueNumber!,
+        workflowType: 'pause',
+        status: 'paused',
+        payload: {
+          reason: 'stop_command',
+          cancelledFollowUps: true,
+          manualCommandsAllowed: true,
+        },
+        markerLogical: 'paused',
+        markerVersion: 1,
+        stateVersion: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await this.workflowStateRepository.appendEvent({
+        eventId: randomUUID(),
+        repositoryId: job.repositoryId,
+        issueNumber: job.issueNumber!,
+        workflowType: 'pause',
+        eventType: 'state_transition',
+        stateVersion: savedState.stateVersion,
+        payload: {
+          to: 'paused',
+          reason: 'stop_command',
+          jobId: job.jobId,
+          manualCommandsAllowed: true,
+        },
+        createdAt: new Date(),
+      });
 
       // 3. Mark the job paused / completed
       // The prompt says: "Mark the issue/job paused using existing job status semantics and a small follow-up state abstraction."
