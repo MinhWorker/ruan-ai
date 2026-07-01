@@ -4,12 +4,20 @@ import { JobService } from '../../job/job.service';
 import { FollowUpService } from '../../job/follow-up.service';
 import { GithubWriter } from '../../github-writer/interfaces/github-writer.interface';
 import { Job } from '../../job/interfaces/job.interface';
+import { WorkflowStateRepository } from '../../workflow-state/workflow-state.repository';
+import {
+  WorkflowEvent,
+  WorkflowState,
+} from '../../workflow-state/interfaces/workflow-state.interface';
 
 describe('StopWorkflowService', () => {
   let service: StopWorkflowService;
   let jobService: Partial<JobService>;
   let followUpService: Partial<FollowUpService>;
   let githubWriter: Partial<GithubWriter>;
+  let workflowStateRepository: jest.Mocked<WorkflowStateRepository>;
+  let saveState: jest.MockedFunction<WorkflowStateRepository['saveState']>;
+  let appendEvent: jest.MockedFunction<WorkflowStateRepository['appendEvent']>;
 
   beforeEach(async () => {
     jobService = {
@@ -22,6 +30,22 @@ describe('StopWorkflowService', () => {
     githubWriter = {
       upsertComment: jest.fn().mockResolvedValue(undefined),
     };
+    saveState = jest.fn(
+      (state: WorkflowState): Promise<WorkflowState> =>
+        Promise.resolve({
+          ...state,
+          stateVersion: 1,
+        }),
+    );
+    appendEvent = jest.fn(
+      (event: WorkflowEvent): Promise<WorkflowEvent> => Promise.resolve(event),
+    );
+    workflowStateRepository = {
+      saveState,
+      findState: jest.fn(),
+      appendEvent,
+      findEvents: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,6 +53,7 @@ describe('StopWorkflowService', () => {
         { provide: JobService, useValue: jobService },
         { provide: FollowUpService, useValue: followUpService },
         { provide: GithubWriter, useValue: githubWriter },
+        { provide: WorkflowStateRepository, useValue: workflowStateRepository },
       ],
     }).compile();
 
@@ -41,6 +66,8 @@ describe('StopWorkflowService', () => {
       issueNumber: 1,
       repositoryOwner: 'o',
       repositoryName: 'r',
+      repositoryId: 99,
+      installationId: 123,
     } as unknown as Job;
     const result = await service.execute(job);
 
@@ -52,5 +79,33 @@ describe('StopWorkflowService', () => {
     );
     expect(githubWriter.upsertComment).toHaveBeenCalled();
     expect(jobService.updateJobStatus).toHaveBeenCalledWith('1', 'paused');
+
+    const savedState = saveState.mock.calls[0]?.[0];
+    expect(savedState).toMatchObject({
+      installationId: 123,
+      repositoryId: 99,
+      repositoryOwner: 'o',
+      repositoryName: 'r',
+      issueNumber: 1,
+      workflowType: 'pause',
+      status: 'paused',
+      markerLogical: 'paused',
+    });
+    expect(savedState?.payload).toMatchObject({
+      reason: 'stop_command',
+      manualCommandsAllowed: true,
+    });
+
+    const appendedEvent = appendEvent.mock.calls[0]?.[0];
+    expect(appendedEvent).toMatchObject({
+      repositoryId: 99,
+      issueNumber: 1,
+      workflowType: 'pause',
+      eventType: 'state_transition',
+    });
+    expect(appendedEvent?.payload).toMatchObject({
+      to: 'paused',
+      reason: 'stop_command',
+    });
   });
 });

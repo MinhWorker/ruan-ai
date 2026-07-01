@@ -26,6 +26,7 @@ import {
 } from './stop-workflow.service';
 import { GithubWriter } from '../../github-writer/interfaces/github-writer.interface';
 import { Job } from '../../job/interfaces/job.interface';
+import { WorkflowStateRepository } from '../../workflow-state/workflow-state.repository';
 
 /**
  * Routes queued jobs to the appropriate workflow handler.
@@ -43,6 +44,7 @@ export class PmWorkflowService {
     private readonly blockerWorkflowService: BlockerWorkflowService,
     private readonly stopWorkflowService: StopWorkflowService,
     private readonly githubWriter: GithubWriter,
+    private readonly workflowStateRepository: WorkflowStateRepository,
   ) {}
 
   /**
@@ -73,6 +75,18 @@ export class PmWorkflowService {
     }
 
     await this.jobService.incrementAttempts(job.jobId);
+
+    if (await this.shouldSkipAutomaticWorkflowForPause(job)) {
+      this.logger.log(
+        `Skipping automatic workflow ${job.workflowType} for paused issue ${job.issueNumber}`,
+      );
+      await this.jobService.updateJobStatus(job.jobId, 'paused');
+      return {
+        success: true,
+        commentWritten: false,
+        warnings: ['Issue is paused; automatic workflow skipped'],
+      };
+    }
 
     if (job.workflowType === 'issue.opened') {
       return this.triageWorkflowService.execute(job);
@@ -127,4 +141,26 @@ export class PmWorkflowService {
     await this.jobService.updateJobStatus(job.jobId, 'completed');
     return null;
   }
+
+  private async shouldSkipAutomaticWorkflowForPause(
+    job: Job,
+  ): Promise<boolean> {
+    if (!isAutomaticIssueWorkflow(job.workflowType)) {
+      return false;
+    }
+    if (!job.repositoryId || !job.issueNumber) {
+      return false;
+    }
+
+    const pauseState = await this.workflowStateRepository.findState(
+      job.repositoryId,
+      job.issueNumber,
+      'pause',
+    );
+    return pauseState?.status === 'paused';
+  }
+}
+
+function isAutomaticIssueWorkflow(workflowType: string): boolean {
+  return workflowType.startsWith('issue.');
 }
