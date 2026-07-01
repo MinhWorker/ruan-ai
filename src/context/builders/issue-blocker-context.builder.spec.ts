@@ -89,4 +89,69 @@ describe('IssueBlockerContextBuilder', () => {
     expect(context.activeSplitComment).toContain('ruan-ai:workflow=split');
     expect(context.activeStatusComment).toContain('ruan-ai:workflow=status');
   });
+
+  it('should include linked PR, failing checks, deployment signals, and related issues as blocker evidence', async () => {
+    githubClient.setLinkedPullRequests('test-org', 'test-repo', 1, [
+      {
+        number: 42,
+        title: 'Deploy workflow change',
+        state: 'open',
+        author: 'dev',
+        url: 'https://github.com/test-org/test-repo/pull/42',
+        headRefName: 'codex/deploy-workflow',
+        headSha: 'abc123',
+        baseRefName: 'develop',
+        draft: false,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T01:00:00Z',
+      },
+    ]);
+    githubClient.setCheckRuns('test-org', 'test-repo', 'abc123', [
+      {
+        name: 'Cloud Build staging',
+        status: 'completed',
+        conclusion: 'failure',
+        detailsUrl: 'https://console.cloud.google.com/cloud-build/builds/1',
+      },
+    ]);
+    githubClient.setRelatedIssues('test-org', 'test-repo', 1, [
+      {
+        number: 7,
+        title: 'Deployment blocked',
+        state: 'open',
+        relationship: 'mentioned',
+        url: 'https://github.com/test-org/test-repo/issues/7',
+      },
+    ]);
+
+    const context = await builder.build({
+      owner: 'test-org',
+      repo: 'test-repo',
+      issueNumber: 1,
+      senderLogin: 'user',
+      triggeringCommentBody: '@ruangm-ai /blocker staging is failing',
+    });
+
+    expect(context.linkedPullRequests).toEqual([
+      expect.objectContaining({ number: 42, headSha: 'abc123' }),
+    ]);
+    expect(context.checkRuns).toEqual([
+      expect.objectContaining({
+        pullRequestNumber: 42,
+        name: 'Cloud Build staging',
+        conclusion: 'failure',
+      }),
+    ]);
+    expect(context.deploymentSignals).toEqual([
+      expect.objectContaining({
+        source: 'check_run:Cloud Build staging',
+        status: 'failure',
+        url: 'https://console.cloud.google.com/cloud-build/builds/1',
+      }),
+    ]);
+    expect(context.relatedIssues).toEqual([
+      expect.objectContaining({ number: 7, relationship: 'mentioned' }),
+    ]);
+    expect(context.unavailableContextSources).toEqual([]);
+  });
 });
