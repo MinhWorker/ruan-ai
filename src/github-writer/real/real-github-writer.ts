@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { GithubWriter } from '../interfaces/github-writer.interface';
 import { ConfigService } from '../../config/config.service';
+import { TelemetryService } from '../../telemetry/services/telemetry.service';
 
 interface OctokitConstructor {
   new (options: {
@@ -59,9 +60,17 @@ interface GithubCommentResponse {
 @Injectable()
 export class RealGithubWriter extends GithubWriter {
   private appOctokit?: GithubWriteRestClient;
+  private readonly installationOctokitByKey = new Map<
+    string,
+    GithubWriteRestClient
+  >();
   private readonly logger = new Logger(RealGithubWriter.name);
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @Optional()
+    private readonly telemetryService?: TelemetryService,
+  ) {
     super();
   }
 
@@ -94,19 +103,17 @@ export class RealGithubWriter extends GithubWriter {
     owner: string,
     repo: string,
   ): Promise<GithubWriteRestClient> {
-    const { Octokit } = await this.loadOctokit();
-    const { createAppAuth } = await this.loadAuthApp();
     const installationId = this.configService.githubInstallationId;
     if (installationId) {
-      return new Octokit({
-        authStrategy: createAppAuth,
-        auth: {
-          appId: this.configService.githubAppId!,
-          privateKey: this.configService.githubAppPrivateKey!,
-          installationId: Number(installationId),
-        },
-      });
+      return this.getCachedInstallationOctokit(
+        `installation:${installationId}`,
+        Number(installationId),
+      );
     }
+
+    const repositoryCacheKey = `repository:${owner}/${repo}`;
+    const cached = this.installationOctokitByKey.get(repositoryCacheKey);
+    if (cached) return cached;
 
     const appOcto = await this.getAppOctokit();
     const { data: installation } = await appOcto.rest.apps.getRepoInstallation({
@@ -114,14 +121,31 @@ export class RealGithubWriter extends GithubWriter {
       repo,
     });
 
-    return new Octokit({
+    return this.getCachedInstallationOctokit(
+      repositoryCacheKey,
+      installation.id,
+    );
+  }
+
+  private async getCachedInstallationOctokit(
+    cacheKey: string,
+    installationId: number,
+  ): Promise<GithubWriteRestClient> {
+    const cached = this.installationOctokitByKey.get(cacheKey);
+    if (cached) return cached;
+
+    const { Octokit } = await this.loadOctokit();
+    const { createAppAuth } = await this.loadAuthApp();
+    const octokit = new Octokit({
       authStrategy: createAppAuth,
       auth: {
         appId: this.configService.githubAppId!,
         privateKey: this.configService.githubAppPrivateKey!,
-        installationId: installation.id,
+        installationId,
       },
     });
+    this.installationOctokitByKey.set(cacheKey, octokit);
+    return octokit;
   }
 
   async applyLabels(
@@ -132,13 +156,44 @@ export class RealGithubWriter extends GithubWriter {
   ): Promise<void> {
     if (!labels.length) return;
 
-    const octokit = await this.getInstallationOctokit(owner, repo);
-    await octokit.rest.issues.addLabels({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      labels,
-    });
+    try {
+      const octokit = await this.getInstallationOctokit(owner, repo);
+      await octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        labels,
+      });
+
+      this.telemetryService?.recordEvent({
+        type: 'github_write',
+        severity: 'info',
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        message: `Successfully applied labels to issue #${issueNumber}: ${labels.join(', ')}`,
+        metadata: {
+          action: 'apply_labels',
+          labels,
+        },
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.telemetryService?.recordEvent({
+        type: 'github_write',
+        severity: 'error',
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        message: `Failed to apply labels to issue #${issueNumber}: ${errorMsg}`,
+        metadata: {
+          action: 'apply_labels',
+          labels,
+          error: errorMsg,
+        },
+      });
+      throw error;
+    }
   }
 
   async upsertComment(
@@ -148,45 +203,78 @@ export class RealGithubWriter extends GithubWriter {
     marker: string,
     body: string,
   ): Promise<void> {
-    const octokit = await this.getInstallationOctokit(owner, repo);
-    let existingComment: GithubCommentResponse | undefined;
-    let page = 1;
+    try {
+      const octokit = await this.getInstallationOctokit(owner, repo);
+      let existingComment: GithubCommentResponse | undefined;
+      let page = 1;
 
-    while (true) {
-      const { data: comments } = await octokit.rest.issues.listComments({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        per_page: 100,
-        page,
-      });
+      while (true) {
+        const { data: comments } = await octokit.rest.issues.listComments({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          per_page: 100,
+          page,
+        });
 
-      const found = comments.find((c) => c.body?.includes(marker));
-      if (found) {
-        existingComment = found;
-        break;
+        const found = comments.find((c) => c.body?.includes(marker));
+        if (found) {
+          existingComment = found;
+          break;
+        }
+
+        if (comments.length < 100) break;
+        page++;
       }
 
-      if (comments.length < 100) break;
-      page++;
-    }
+      const finalBody = `${marker}\n${body}`;
+      let action: 'create_comment' | 'update_comment' = 'create_comment';
 
-    const finalBody = `${marker}\n${body}`;
+      if (existingComment) {
+        action = 'update_comment';
+        await octokit.rest.issues.updateComment({
+          owner,
+          repo,
+          comment_id: existingComment.id,
+          body: finalBody,
+        });
+      } else {
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: finalBody,
+        });
+      }
 
-    if (existingComment) {
-      await octokit.rest.issues.updateComment({
-        owner,
-        repo,
-        comment_id: existingComment.id,
-        body: finalBody,
+      this.telemetryService?.recordEvent({
+        type: 'github_write',
+        severity: 'info',
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        message: `Successfully upserted comment (${action}) on issue #${issueNumber}`,
+        metadata: {
+          action,
+          marker,
+        },
       });
-    } else {
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        body: finalBody,
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.telemetryService?.recordEvent({
+        type: 'github_write',
+        severity: 'error',
+        repositoryOwner: owner,
+        repositoryName: repo,
+        issueNumber,
+        message: `Failed to upsert comment on issue #${issueNumber}: ${errorMsg}`,
+        metadata: {
+          action: 'upsert_comment',
+          marker,
+          error: errorMsg,
+        },
       });
+      throw error;
     }
   }
 }

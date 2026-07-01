@@ -7,12 +7,12 @@ official release. It is binding for humans and coding agents.
 
 ## Environments
 
-| Environment | Branch | Deployment | Notes |
-| --- | --- | --- | --- |
-| Local | any work branch | none | fake providers by default |
-| Integration | `develop` | CI only | no Cloud Run deployment |
-| Staging/Pilot | `staging` | Cloud Build to `ruan-ai-staging` | owner-reviewed promotion only |
-| Official release | `main` plus tag | owner-approved release process | protected source of truth |
+| Environment      | Branch          | Deployment                       | Notes                         |
+| ---------------- | --------------- | -------------------------------- | ----------------------------- |
+| Local            | any work branch | none                             | fake providers by default     |
+| Integration      | `develop`       | CI only                          | no Cloud Run deployment       |
+| Staging/Pilot    | `staging`       | Cloud Build to `ruan-ai-staging` | owner-reviewed promotion only |
+| Official release | `main` plus tag | owner-approved release process   | protected source of truth     |
 
 Until branch protection and Cloud Build triggers are fully configured, do not
 assume branch names alone enforce safety. Treat this document as the policy.

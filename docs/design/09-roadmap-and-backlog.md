@@ -82,7 +82,9 @@ Build:
 - real Google AI Studio adapter,
 - provider-mode config gating,
 - pagination and idempotent comment hardening,
-- credential-backed live integration tests gated by explicit env vars.
+- credential-backed live integration tests gated by explicit env vars,
+- multi-repository provider configuration storage (Issue #15),
+- Google Cloud Gemini Enterprise Agent Platform API provider implementation (formerly Vertex AI; Issue #45).
 
 Exit criteria:
 
@@ -100,6 +102,7 @@ Build:
 - bounded retries and failure marking,
 - telemetry/audit records for execution start, success, failure, and skipped jobs,
 - e2e tests proving a signed webhook can execute a workflow without manual `processJob` calls.
+- durable workflow state for triage, plan, split, status, blocker, and pause behavior as defined by ADR 0008.
 
 Constraints:
 

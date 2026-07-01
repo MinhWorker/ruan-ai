@@ -54,6 +54,13 @@ export class InMemoryFollowUpRecordRepository implements FollowUpRecordRepositor
       .map((r) => ({ ...r }));
   }
 
+  async findPendingDueBefore(dueAt: Date): Promise<FollowUpRecord[]> {
+    await Promise.resolve();
+    return Array.from(this.records.values())
+      .filter((r) => r.status === 'pending' && r.dueAt <= dueAt)
+      .map((r) => ({ ...r }));
+  }
+
   async updateStatus(
     id: string,
     status: FollowUpStatus,

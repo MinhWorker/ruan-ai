@@ -58,4 +58,12 @@ export class ConfigService {
   get botMentionName(): string {
     return this.config.BOT_MENTION_NAME;
   }
+
+  get jobStorageMode(): 'memory' | 'postgres' {
+    return this.config.JOB_STORAGE_MODE;
+  }
+
+  get databaseUrl(): string | undefined {
+    return this.config.DATABASE_URL;
+  }
 }

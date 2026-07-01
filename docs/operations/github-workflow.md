@@ -67,7 +67,70 @@ Avoid long-lived personal branches.
 | `develop`                             | `staging` | deploy staging after review           |
 | `staging`                             | `main`    | official release after owner approval |
 
-Do not open routine feature PRs directly into `main`.
+**Merge Policy:**
+
+- **Work branches -> `develop`**: Requires a PR with local/CI validation expectations met. Squash merge by default.
+- **`develop` -> `staging`**: Requires a PR. Merging into `staging` is a deployment decision.
+- **`staging` -> `main`**: Requires a PR. Owner approval is mandatory.
+- **No direct pushes to `main`**.
+- **No release tags without owner approval**.
+
+## Branch Protection and Rulesets
+
+To enforce the workflow safely, the repository owner must manually configure the following branch protection rules or rulesets (Settings > Rules > Rulesets).
+
+Current observed settings as of 2026-06-30:
+
+- Repository rulesets: none.
+- Repository merge settings: squash merge enabled; merge commits and rebase
+  merges disabled; delete head branches after merge enabled.
+- `main` branch protection: configured with required pull request review
+  count 1, required status checks disabled for now, force pushes disabled,
+  deletions disabled, admin enforcement disabled.
+- `staging` branch protection: configured with required pull request review
+  count 1, required status checks disabled for now, force pushes disabled,
+  deletions disabled, admin enforcement disabled.
+- `develop` branch protection: configured with required pull request review
+  count 1, required status checks disabled for now, force pushes disabled,
+  deletions disabled, admin enforcement disabled.
+
+Admin enforcement is intentionally disabled so the repository owner retains an
+emergency recovery path. Normal contributors and agents should still use pull
+requests for all protected branches.
+
+### `develop`
+
+- **Require pull request before merging**
+- **Require approvals:** 1.
+- **Require status checks to pass before merging only after matching checks exist in GitHub.**
+  - Current baseline: local verification evidence in the PR template remains required until a dedicated `develop` CI workflow exists.
+  - Future recommended required checks:
+    - build validation,
+    - lint,
+    - unit tests,
+    - e2e tests.
+  - Do not configure required checks by expected names before GitHub has observed those checks at least once; otherwise routine merges can become blocked.
+- **Do not allow direct pushes.**
+
+### `staging`
+
+- **Require pull request before merging**
+- **Require approvals:** 1.
+- **Require status checks to pass before merging only after matching checks exist in GitHub:**
+  - Status checks should include `Staging Deployment Status` after GitHub has observed it on the `staging` branch.
+  - Cloud Build remains authoritative for final deploy success; the GitHub Actions check is a visibility and local-validation layer unless a future Workload Identity Federation upgrade changes this.
+- **Do not allow direct pushes.**
+
+### `main`
+
+- **Require pull request before merging**
+- **Require approvals:** 1 (Must be from a repository owner or designated release manager).
+- **Require status checks to pass before merging only after release checks are defined and observed in GitHub.**
+- **Do not allow direct pushes.**
+
+### Tags
+
+- Restrict tag creation to owners/admins to prevent unauthorized release tags (e.g., `v0.1.0`).
 
 ## Deployment Safety
 

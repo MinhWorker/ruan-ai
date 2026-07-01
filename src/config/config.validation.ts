@@ -11,6 +11,8 @@ export interface EnvironmentConfig {
   JOB_EXECUTION_MODE: 'inline' | 'queued';
   AI_MODEL_TIMEOUT_MS: number;
   BOT_MENTION_NAME: string;
+  JOB_STORAGE_MODE: 'memory' | 'postgres';
+  DATABASE_URL?: string;
 }
 
 export function validateConfig(
@@ -78,6 +80,22 @@ export function validateConfig(
       errors.push('FALLBACK_MODEL_ID is required in real mode.');
   }
 
+  const jobStorageModeInput = env.JOB_STORAGE_MODE ?? 'memory';
+  if (jobStorageModeInput !== 'memory' && jobStorageModeInput !== 'postgres') {
+    errors.push(
+      `JOB_STORAGE_MODE must be either "memory" or "postgres", got: ${jobStorageModeInput}`,
+    );
+  }
+  const jobStorageMode =
+    jobStorageModeInput === 'postgres' ? 'postgres' : 'memory';
+
+  const databaseUrl = env.DATABASE_URL;
+  if (jobStorageMode === 'postgres' && !databaseUrl) {
+    errors.push(
+      'DATABASE_URL is required when JOB_STORAGE_MODE is "postgres".',
+    );
+  }
+
   if (errors.length > 0) {
     throw new Error(`Config validation failed:\n${errors.join('\n')}`);
   }
@@ -95,5 +113,7 @@ export function validateConfig(
     JOB_EXECUTION_MODE: jobExecutionMode,
     AI_MODEL_TIMEOUT_MS: aiModelTimeoutMs,
     BOT_MENTION_NAME: botMentionName,
+    JOB_STORAGE_MODE: jobStorageMode,
+    DATABASE_URL: databaseUrl,
   };
 }
