@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
-import { IssueTriageContext } from '../interfaces/issue-triage-context.interface';
+import {
+  IssueTemplateFieldContext,
+  IssueTriageContext,
+} from '../interfaces/issue-triage-context.interface';
 
 /**
  * Default maximum labels the AI can suggest in a single triage.
@@ -12,6 +15,16 @@ const DEFAULT_MAX_LABELS = 5;
  * Truncated beyond this to stay within AI context window bounds.
  */
 const MAX_BODY_LENGTH = 10_000;
+
+const TEMPLATE_PLACEHOLDERS = new Set([
+  '',
+  '_no response_',
+  'no response',
+  'n/a',
+  'none',
+  'todo',
+  'tbd',
+]);
 
 /**
  * Builds the bounded IssueTriageContext packet for the triage workflow.
@@ -68,10 +81,39 @@ export class IssueTriageContextBuilder {
       },
       repositoryLabels,
       currentIssueLabels: issue.labels,
+      templateFields: parseTemplateFields(body),
       config: {
         labelAllowlist: params.labelAllowlist ?? null,
         maxLabels: DEFAULT_MAX_LABELS,
       },
     };
   }
+}
+
+function parseTemplateFields(body: string): IssueTemplateFieldContext[] {
+  const headingPattern = /^###\s+(.+?)\s*$/gm;
+  const headings: Array<{ name: string; index: number; endIndex: number }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = headingPattern.exec(body)) !== null) {
+    headings.push({
+      name: match[1].trim(),
+      index: match.index,
+      endIndex: headingPattern.lastIndex,
+    });
+  }
+
+  return headings.map((heading, index) => {
+    const nextHeading = headings[index + 1];
+    const rawValue = body
+      .slice(heading.endIndex, nextHeading?.index ?? body.length)
+      .trim();
+    const normalized = rawValue.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    return {
+      name: heading.name,
+      value: rawValue,
+      missing: TEMPLATE_PLACEHOLDERS.has(normalized),
+    };
+  });
 }
