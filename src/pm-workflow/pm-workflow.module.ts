@@ -5,6 +5,7 @@ import { AiModule } from '../ai/ai.module';
 import { PolicyModule } from '../policy/policy.module';
 import { GithubWriterModule } from '../github-writer/github-writer.module';
 import { GithubClientModule } from '../github-client/github-client.module';
+import { WorkflowStateModule } from '../workflow-state/workflow-state.module';
 import { TriageWorkflowService } from './services/triage-workflow.service';
 import { PlanWorkflowService } from './services/plan-workflow.service';
 import { SplitWorkflowService } from './services/split-workflow.service';
@@ -21,6 +22,7 @@ import { PmWorkflowService } from './services/pm-workflow.service';
     PolicyModule,
     GithubWriterModule,
     GithubClientModule,
+    WorkflowStateModule,
   ],
   providers: [
     TriageWorkflowService,

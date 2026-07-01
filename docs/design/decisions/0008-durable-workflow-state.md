@@ -48,7 +48,11 @@ If GitHub and the database disagree, GitHub comments remain the visible record a
 - **Split:** Tracks generated task packets, created sub-issue references when applicable, dependency ordering, and partial completion so interrupted splits can be resumed safely.
 - **Status:** Tracks the last status synthesis, cited evidence, linked PR/check references if a future design enables them, and whether the status is stale.
 - **Blocker:** Tracks escalation state, evidence used, human questions awaiting answers, and the next proving step when diagnosis is incomplete.
-- **Pause:** Tracks issue-level `/stop` state separately from any single workflow. While paused, automatic workflows for that issue must not run. Manual command behavior and any future `/resume` command require a separate design decision before implementation.
+- **Pause:** Tracks issue-level `/stop` state separately from any single
+  workflow. While paused, automatic issue workflows for that issue must not run.
+  Manual slash commands remain allowed for now so maintainers can still ask for
+  status, planning, or blocker context on a paused issue. Any future `/resume`
+  command requires a separate design decision before implementation.
 
 ### Migration from Comments-Only State
 
