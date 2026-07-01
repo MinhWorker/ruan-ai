@@ -179,4 +179,52 @@ describe('IssueTriageContextBuilder', () => {
     // Injection defense is handled by the AI prompt structure and policy layer.
     expect(context.issue.body).toBe(injectionBody);
   });
+
+  it('should parse issue template fields and flag placeholder-only answers as missing', async () => {
+    githubClient.setIssue('test-org', 'test-repo', {
+      number: 1,
+      title: 'Bug: app crashes on startup',
+      body: [
+        '### Expected behavior',
+        '',
+        '_No response_',
+        '',
+        '### Actual behavior',
+        '',
+        'The app crashes immediately.',
+        '',
+        '### Reproduction steps',
+        '',
+        '1. Run npm start',
+      ].join('\n'),
+      author: 'bug-reporter',
+      createdAt: '2026-01-01T00:00:00Z',
+      labels: [],
+    });
+
+    const context = await builder.build({
+      owner: 'test-org',
+      repo: 'test-repo',
+      issueNumber: 1,
+      senderLogin: 'bug-reporter',
+    });
+
+    expect(context.templateFields).toEqual([
+      {
+        name: 'Expected behavior',
+        value: '_No response_',
+        missing: true,
+      },
+      {
+        name: 'Actual behavior',
+        value: 'The app crashes immediately.',
+        missing: false,
+      },
+      {
+        name: 'Reproduction steps',
+        value: '1. Run npm start',
+        missing: false,
+      },
+    ]);
+  });
 });
