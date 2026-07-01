@@ -79,20 +79,20 @@ Avoid long-lived personal branches.
 
 To enforce the workflow safely, the repository owner must manually configure the following branch protection rules or rulesets (Settings > Rules > Rulesets).
 
-Current observed settings as of 2026-06-30:
+Current observed settings as of 2026-07-01:
 
 - Repository rulesets: none.
 - Repository merge settings: squash merge enabled; merge commits and rebase
   merges disabled; delete head branches after merge enabled.
-- `main` branch protection: configured with required pull request review
-  count 1, required status checks disabled for now, force pushes disabled,
-  deletions disabled, admin enforcement disabled.
-- `staging` branch protection: configured with required pull request review
-  count 1, required status checks disabled for now, force pushes disabled,
-  deletions disabled, admin enforcement disabled.
-- `develop` branch protection: configured with required pull request review
-  count 1, required status checks disabled for now, force pushes disabled,
-  deletions disabled, admin enforcement disabled.
+- `main` branch protection: required pull request reviews disabled, required
+  status checks disabled for now, force pushes disabled, deletions disabled,
+  admin enforcement disabled.
+- `staging` branch protection: required pull request reviews disabled,
+  required status checks disabled for now, force pushes disabled, deletions
+  disabled, admin enforcement disabled.
+- `develop` branch protection: required pull request reviews disabled,
+  required status checks disabled for now, force pushes disabled, deletions
+  disabled, admin enforcement disabled.
 
 Admin enforcement is intentionally disabled so the repository owner retains an
 emergency recovery path. Normal contributors and agents should still use pull
@@ -100,8 +100,9 @@ requests for all protected branches.
 
 ### `develop`
 
-- **Require pull request before merging**
-- **Require approvals:** 1.
+- Use pull requests for routine work.
+- Required approvals are currently disabled so repository-owner maintenance PRs
+  are not blocked by self-review limits.
 - **Require status checks to pass before merging only after matching checks exist in GitHub.**
   - Current baseline: local verification evidence in the PR template remains required until a dedicated `develop` CI workflow exists.
   - Future recommended required checks:
@@ -114,8 +115,9 @@ requests for all protected branches.
 
 ### `staging`
 
-- **Require pull request before merging**
-- **Require approvals:** 1.
+- Use pull requests for staging promotion.
+- Required approvals are currently disabled so repository-owner staging
+  promotions are not blocked by self-review limits.
 - **Require status checks to pass before merging only after matching checks exist in GitHub:**
   - Status checks should include `Staging Deployment Status` after GitHub has observed it on the `staging` branch.
   - Cloud Build remains authoritative for final deploy success; the GitHub Actions check is a visibility and local-validation layer unless a future Workload Identity Federation upgrade changes this.
@@ -123,8 +125,9 @@ requests for all protected branches.
 
 ### `main`
 
-- **Require pull request before merging**
-- **Require approvals:** 1 (Must be from a repository owner or designated release manager).
+- Use pull requests for official releases.
+- Required approvals are currently disabled in GitHub settings. Owner approval
+  remains a release-process requirement even when GitHub does not enforce it.
 - **Require status checks to pass before merging only after release checks are defined and observed in GitHub.**
 - **Do not allow direct pushes.**
 

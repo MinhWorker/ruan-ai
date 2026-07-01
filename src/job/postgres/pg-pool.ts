@@ -44,3 +44,33 @@ export interface DbFollowUpRow {
   created_at: Date;
   updated_at: Date;
 }
+
+export interface DbWorkflowStateRow {
+  installation_id: number | null;
+  repository_id: number;
+  repository_owner: string | null;
+  repository_name: string | null;
+  issue_node_id: string | null;
+  issue_number: number;
+  workflow_type: string;
+  status: string;
+  payload: Record<string, unknown>;
+  comment_id: number | null;
+  comment_node_id: string | null;
+  marker_logical: string | null;
+  marker_version: number | null;
+  state_version: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface DbWorkflowEventRow {
+  event_id: string;
+  repository_id: number;
+  issue_number: number;
+  workflow_type: string;
+  event_type: string;
+  state_version: number;
+  payload: Record<string, unknown>;
+  created_at: Date;
+}
