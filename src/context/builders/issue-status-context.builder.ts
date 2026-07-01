@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
 import { IssueStatusContext } from '../interfaces/issue-status-context.interface';
 import { FollowUpService } from '../../job/follow-up.service';
+import { buildIssueCommentContext } from '../comment-context';
 
 @Injectable()
 export class IssueStatusContextBuilder {
@@ -37,16 +38,13 @@ export class IssueStatusContextBuilder {
       params.repo,
     );
 
-    const recentComments = comments.slice(-10); // Last 10 comments
-    const appComments = comments.filter((c) =>
-      c.body.includes('<!-- ruan-ai:workflow='),
-    );
+    const commentContext = buildIssueCommentContext(comments);
 
     return {
       issue,
       repositoryLabels: labels,
-      recentComments,
-      appComments,
+      recentComments: commentContext.recentComments,
+      appComments: commentContext.appComments,
       scheduledFollowUps,
     };
   }
