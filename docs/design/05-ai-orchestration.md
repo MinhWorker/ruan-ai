@@ -78,7 +78,7 @@ through generated text.
 | Plan     | Latest 10 human discussion/command comments plus latest prior triage and plan app marker comments.                                                                                                                                                                                                |
 | Split    | Latest 10 human discussion/command comments plus the latest active plan app marker comment.                                                                                                                                                                                                       |
 | Status   | Latest 10 human discussion/command comments plus latest app marker comments, scheduled follow-ups, linked pull requests, linked PR check runs, and related issue references. GitHub Projects context is optional future work and must be represented as unavailable until explicitly implemented. |
-| Blocker  | Latest 10 human discussion/command comments plus active plan, split, and status app marker comments and the triggering blocker text.                                                                                                                                                              |
+| Blocker  | Latest 10 human discussion/command comments plus active plan, split, and status app marker comments, the triggering blocker text, linked pull requests, linked PR check runs, related issue references, deployment-like check signals, and unavailable optional context sources.                   |
 
 ## Prompt Injection Rules
 

@@ -456,13 +456,40 @@ export class FakeTriageAiClient extends AiClient {
       `[FAKE AI] Analyzing blocker for issue #${context.issue.number}: ${context.issue.title}`,
     );
 
-    const hasEvidence = context.blockerTriggeringText
-      .toLowerCase()
-      .includes('evidence');
+    const failingDeploymentSignal = context.deploymentSignals.find(
+      (signal) =>
+        signal.status !== 'success' &&
+        signal.status !== 'neutral' &&
+        signal.status !== 'skipped',
+    );
+    const failingCheck = context.checkRuns.find(
+      (run) =>
+        run.status === 'completed' &&
+        run.conclusion !== null &&
+        run.conclusion !== undefined &&
+        run.conclusion !== 'success' &&
+        run.conclusion !== 'skipped',
+    );
+    const hasEvidence =
+      context.blockerTriggeringText.toLowerCase().includes('evidence') ||
+      Boolean(failingDeploymentSignal) ||
+      Boolean(failingCheck);
 
-    const summary = 'Analysis of reported blocker';
-    const likelyCause = hasEvidence ? 'API is down' : null;
-    const nextProvingMethod = 'Check API status page';
+    const summary = failingDeploymentSignal
+      ? `Deployment blocker observed from ${failingDeploymentSignal.source}`
+      : 'Analysis of reported blocker';
+    const likelyCause = failingDeploymentSignal
+      ? 'Deployment signal is failing'
+      : failingCheck
+        ? `Check ${failingCheck.name} is failing`
+        : hasEvidence
+          ? 'API is down'
+          : null;
+    const nextProvingMethod = failingDeploymentSignal
+      ? `Inspect ${failingDeploymentSignal.source} and fix the failing deployment step`
+      : failingCheck
+        ? `Inspect check_run:${failingCheck.name} and fix the failing check`
+        : 'Check API status page';
     const directHumanQuestions = hasEvidence ? [] : ['Did you check the API?'];
 
     const commentLines = [
@@ -484,6 +511,16 @@ export class FakeTriageAiClient extends AiClient {
       confidence: hasEvidence ? 'high' : 'low',
       assumptions: [],
       evidence: [
+        ...context.deploymentSignals.map((signal) => ({
+          source: signal.source,
+          content: signal.summary,
+          type: 'observed' as const,
+        })),
+        ...context.checkRuns.map((run) => ({
+          source: `check_run:${run.name}`,
+          content: `PR #${run.pullRequestNumber} check ${run.name}: ${run.status}/${run.conclusion ?? 'none'}`,
+          type: 'observed' as const,
+        })),
         {
           source: 'triggering_comment',
           content: context.blockerTriggeringText,
