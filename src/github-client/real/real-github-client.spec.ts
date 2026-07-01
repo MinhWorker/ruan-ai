@@ -45,16 +45,36 @@ describe('RealGithubClient', () => {
                   data: [{ name: 'enhancement', color: '00ff00' }],
                 });
               }),
-            get: jest.fn().mockResolvedValue({
-              data: {
-                number: 1,
-                title: 'Title',
-                body: 'Body',
-                user: { login: 'user' },
-                created_at: '2023-01-01',
-                labels: ['bug'],
-              },
-            }),
+            get: jest
+              .fn()
+              .mockImplementation((params: { issue_number: number }) => {
+                if (params.issue_number === 7) {
+                  return Promise.resolve({
+                    data: {
+                      number: 7,
+                      title: 'Related issue',
+                      body: 'Related body',
+                      user: { login: 'user' },
+                      created_at: '2023-01-02',
+                      labels: [],
+                      state: 'open',
+                      html_url: 'https://github.com/owner/repo/issues/7',
+                    },
+                  });
+                }
+                return Promise.resolve({
+                  data: {
+                    number: params.issue_number,
+                    title: 'Title',
+                    body: 'Body references #7',
+                    user: { login: 'user' },
+                    created_at: '2023-01-01',
+                    labels: ['bug'],
+                    state: 'open',
+                    html_url: `https://github.com/owner/repo/issues/${params.issue_number}`,
+                  },
+                });
+              }),
             listComments: jest
               .fn()
               .mockImplementation((params: { page?: number }) => {
@@ -79,6 +99,26 @@ describe('RealGithubClient', () => {
                   ],
                 });
               }),
+            listEventsForTimeline: jest
+              .fn()
+              .mockImplementation((params: { page?: number }) => {
+                if (params.page === 1) {
+                  return Promise.resolve({
+                    data: [
+                      {
+                        event: 'cross-referenced',
+                        source: {
+                          issue: {
+                            number: 42,
+                            pull_request: {},
+                          },
+                        },
+                      },
+                    ],
+                  });
+                }
+                return Promise.resolve({ data: [] });
+              }),
           },
           repos: {
             get: jest.fn().mockResolvedValue({
@@ -86,6 +126,41 @@ describe('RealGithubClient', () => {
                 id: 1,
                 full_name: 'owner/repo',
                 default_branch: 'main',
+              },
+            }),
+          },
+          pulls: {
+            get: jest.fn().mockResolvedValue({
+              data: {
+                number: 42,
+                title: 'Linked PR',
+                state: 'open',
+                user: { login: 'dev' },
+                html_url: 'https://github.com/owner/repo/pull/42',
+                head: { ref: 'feature/status', sha: 'abc123' },
+                base: { ref: 'develop' },
+                draft: false,
+                mergeable_state: 'clean',
+                changed_files: 4,
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-01T01:00:00Z',
+                merged_at: null,
+              },
+            }),
+          },
+          checks: {
+            listForRef: jest.fn().mockResolvedValue({
+              data: {
+                check_runs: [
+                  {
+                    name: 'unit-tests',
+                    status: 'completed',
+                    conclusion: 'success',
+                    started_at: '2026-01-01T00:00:00Z',
+                    completed_at: '2026-01-01T00:01:00Z',
+                    details_url: 'https://github.com/owner/repo/actions/runs/1',
+                  },
+                ],
               },
             }),
           },
@@ -123,5 +198,47 @@ describe('RealGithubClient', () => {
     expect(comments.length).toBe(101);
     expect(comments[0].id).toBe(1);
     expect(comments[100].id).toBe(2);
+  });
+
+  it('should fetch linked pull requests from issue timeline events', async () => {
+    const pullRequests = await client.getLinkedPullRequests('owner', 'repo', 1);
+
+    expect(pullRequests).toEqual([
+      expect.objectContaining({
+        number: 42,
+        title: 'Linked PR',
+        headSha: 'abc123',
+        mergeableState: 'clean',
+        changedFiles: 4,
+      }),
+    ]);
+  });
+
+  it('should fetch check runs for a git ref', async () => {
+    const checkRuns = await client.getCheckRunsForRef(
+      'owner',
+      'repo',
+      'abc123',
+    );
+
+    expect(checkRuns).toEqual([
+      expect.objectContaining({
+        name: 'unit-tests',
+        status: 'completed',
+        conclusion: 'success',
+      }),
+    ]);
+  });
+
+  it('should fetch related issues mentioned in issue body or comments', async () => {
+    const issues = await client.getRelatedIssues('owner', 'repo', 1);
+
+    expect(issues).toEqual([
+      expect.objectContaining({
+        number: 7,
+        title: 'Related issue',
+        relationship: 'mentioned',
+      }),
+    ]);
   });
 });

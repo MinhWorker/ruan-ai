@@ -5,6 +5,9 @@ import {
   IssueData,
   RepositoryData,
   IssueComment,
+  PullRequestContext,
+  CheckRunContext,
+  RelatedIssueContext,
 } from '../interfaces/github-client.interface';
 
 /**
@@ -75,6 +78,12 @@ export class FakeGithubClient extends GithubClient {
   private issues = new Map<string, IssueData>();
   private repositories = new Map<string, RepositoryData>();
   private comments = new Map<string, IssueComment[]>();
+  private linkedPullRequests = new Map<string, PullRequestContext[]>();
+  private checkRuns = new Map<string, CheckRunContext[]>();
+  private relatedIssues = new Map<string, RelatedIssueContext[]>();
+  private linkedPullRequestsError?: Error;
+  private checkRunsError?: Error;
+  private relatedIssuesError?: Error;
 
   /**
    * Pre-populate labels for a repository.
@@ -107,6 +116,48 @@ export class FakeGithubClient extends GithubClient {
     comments: IssueComment[],
   ): void {
     this.comments.set(`${owner}/${repo}#${issueNumber}`, comments);
+  }
+
+  setLinkedPullRequests(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    pullRequests: PullRequestContext[],
+  ): void {
+    this.linkedPullRequests.set(
+      `${owner}/${repo}#${issueNumber}`,
+      pullRequests,
+    );
+  }
+
+  setCheckRuns(
+    owner: string,
+    repo: string,
+    ref: string,
+    checkRuns: CheckRunContext[],
+  ): void {
+    this.checkRuns.set(`${owner}/${repo}@${ref}`, checkRuns);
+  }
+
+  setRelatedIssues(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    issues: RelatedIssueContext[],
+  ): void {
+    this.relatedIssues.set(`${owner}/${repo}#${issueNumber}`, issues);
+  }
+
+  failLinkedPullRequestsOnce(error: Error): void {
+    this.linkedPullRequestsError = error;
+  }
+
+  failCheckRunsOnce(error: Error): void {
+    this.checkRunsError = error;
+  }
+
+  failRelatedIssuesOnce(error: Error): void {
+    this.relatedIssuesError = error;
   }
 
   getRepositoryLabels(owner: string, repo: string): Promise<RepositoryLabel[]> {
@@ -154,5 +205,47 @@ export class FakeGithubClient extends GithubClient {
   ): Promise<IssueComment[]> {
     const key = `${owner}/${repo}#${issueNumber}`;
     return Promise.resolve(this.comments.get(key) ?? []);
+  }
+
+  getLinkedPullRequests(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<PullRequestContext[]> {
+    if (this.linkedPullRequestsError) {
+      const error = this.linkedPullRequestsError;
+      this.linkedPullRequestsError = undefined;
+      return Promise.reject(error);
+    }
+    const key = `${owner}/${repo}#${issueNumber}`;
+    return Promise.resolve(this.linkedPullRequests.get(key) ?? []);
+  }
+
+  getCheckRunsForRef(
+    owner: string,
+    repo: string,
+    ref: string,
+  ): Promise<CheckRunContext[]> {
+    if (this.checkRunsError) {
+      const error = this.checkRunsError;
+      this.checkRunsError = undefined;
+      return Promise.reject(error);
+    }
+    const key = `${owner}/${repo}@${ref}`;
+    return Promise.resolve(this.checkRuns.get(key) ?? []);
+  }
+
+  getRelatedIssues(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<RelatedIssueContext[]> {
+    if (this.relatedIssuesError) {
+      const error = this.relatedIssuesError;
+      this.relatedIssuesError = undefined;
+      return Promise.reject(error);
+    }
+    const key = `${owner}/${repo}#${issueNumber}`;
+    return Promise.resolve(this.relatedIssues.get(key) ?? []);
   }
 }
