@@ -1,7 +1,5 @@
-import {
-  RepositoryLabel,
-  IssueComment,
-} from '../../github-client/interfaces/github-client.interface';
+import { RepositoryLabel } from '../../github-client/interfaces/github-client.interface';
+import { ContextIssueComment } from '../comment-context';
 
 export interface IssueSplitContext {
   eventType: 'comment.created';
@@ -22,6 +20,6 @@ export interface IssueSplitContext {
   };
   repositoryLabels: RepositoryLabel[];
   currentIssueLabels: string[];
-  recentComments: IssueComment[];
+  recentComments: ContextIssueComment[];
   activePlanComment: string;
 }

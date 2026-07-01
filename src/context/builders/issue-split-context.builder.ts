@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GithubClient } from '../../github-client/interfaces/github-client.interface';
 import { IssueSplitContext } from '../interfaces/issue-split-context.interface';
+import { buildIssueCommentContext } from '../comment-context';
 
 const MAX_BODY_LENGTH = 10_000;
 
@@ -36,10 +37,12 @@ export class IssueSplitContextBuilder {
         ? issue.body.slice(0, MAX_BODY_LENGTH) + '\n[TRUNCATED]'
         : issue.body;
 
-    // Find the active plan comment (contains ruan-ai:workflow=plan)
+    const commentContext = buildIssueCommentContext(comments);
+
+    // Find the active plan comment from generated app comment history.
     let activePlanComment = '';
-    for (const comment of comments) {
-      if (comment.body.includes('ruan-ai:workflow=plan')) {
+    for (const comment of commentContext.appComments) {
+      if (comment.workflowMarker === 'plan') {
         activePlanComment = comment.body;
       }
     }
@@ -63,7 +66,7 @@ export class IssueSplitContextBuilder {
       },
       repositoryLabels,
       currentIssueLabels: issue.labels,
-      recentComments: comments,
+      recentComments: commentContext.recentComments,
       activePlanComment,
     };
   }

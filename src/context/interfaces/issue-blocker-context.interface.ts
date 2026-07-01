@@ -1,11 +1,9 @@
-import {
-  IssueData,
-  IssueComment,
-} from '../../github-client/interfaces/github-client.interface';
+import { IssueData } from '../../github-client/interfaces/github-client.interface';
+import { ContextIssueComment } from '../comment-context';
 
 export interface IssueBlockerContext {
   issue: IssueData;
-  recentComments: IssueComment[];
+  recentComments: ContextIssueComment[];
   activePlanComment?: string;
   activeSplitComment?: string;
   activeStatusComment?: string;
