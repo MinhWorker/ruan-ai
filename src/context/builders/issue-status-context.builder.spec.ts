@@ -80,4 +80,92 @@ describe('IssueStatusContextBuilder', () => {
       }),
     ]);
   });
+
+  it('should include linked pull requests, check runs, and related issues when available', async () => {
+    githubClient.setLinkedPullRequests('test-org', 'test-repo', 1, [
+      {
+        number: 42,
+        title: 'Implement status context',
+        state: 'open',
+        author: 'contributor',
+        url: 'https://github.com/test-org/test-repo/pull/42',
+        headRefName: 'codex/status-context',
+        headSha: 'abc123',
+        baseRefName: 'develop',
+        draft: false,
+        mergeableState: 'clean',
+        changedFiles: 3,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T01:00:00Z',
+      },
+    ]);
+    githubClient.setCheckRuns('test-org', 'test-repo', 'abc123', [
+      {
+        name: 'unit-tests',
+        status: 'completed',
+        conclusion: 'success',
+        detailsUrl: 'https://github.com/test-org/test-repo/actions/runs/1',
+      },
+    ]);
+    githubClient.setRelatedIssues('test-org', 'test-repo', 1, [
+      {
+        number: 7,
+        title: 'Related blocker',
+        state: 'open',
+        relationship: 'mentioned',
+        url: 'https://github.com/test-org/test-repo/issues/7',
+      },
+    ]);
+
+    const context = await builder.build({
+      owner: 'test-org',
+      repo: 'test-repo',
+      issueNumber: 1,
+      senderLogin: 'user',
+    });
+
+    expect(context.linkedPullRequests).toEqual([
+      expect.objectContaining({
+        number: 42,
+        mergeableState: 'clean',
+        changedFiles: 3,
+      }),
+    ]);
+    expect(context.checkRuns).toEqual([
+      expect.objectContaining({
+        pullRequestNumber: 42,
+        ref: 'abc123',
+        name: 'unit-tests',
+        conclusion: 'success',
+      }),
+    ]);
+    expect(context.relatedIssues).toEqual([
+      expect.objectContaining({
+        number: 7,
+        relationship: 'mentioned',
+      }),
+    ]);
+    expect(context.unavailableContextSources).toEqual([]);
+  });
+
+  it('should record unavailable optional context sources without failing status context', async () => {
+    githubClient.failLinkedPullRequestsOnce(new Error('Missing permission'));
+
+    const context = await builder.build({
+      owner: 'test-org',
+      repo: 'test-repo',
+      issueNumber: 1,
+      senderLogin: 'user',
+    });
+
+    expect(context.linkedPullRequests).toEqual([]);
+    expect(context.checkRuns).toEqual([]);
+    expect(context.relatedIssues).toEqual([]);
+    expect(context.unavailableContextSources).toEqual([
+      expect.objectContaining({
+        source: 'linked_pull_requests',
+        reason: 'Missing permission',
+      }),
+    ]);
+  });
 });

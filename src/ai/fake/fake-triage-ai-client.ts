@@ -377,12 +377,41 @@ export class FakeTriageAiClient extends AiClient {
     );
 
     const isBlocked = context.issue.title.toLowerCase().includes('blocked');
+    const failingCheck = context.checkRuns.find(
+      (run) =>
+        run.status === 'completed' &&
+        run.conclusion !== null &&
+        run.conclusion !== undefined &&
+        run.conclusion !== 'success' &&
+        run.conclusion !== 'skipped',
+    );
+    const openPullRequest = context.linkedPullRequests.find(
+      (pullRequest) => pullRequest.state === 'open',
+    );
 
-    const state = isBlocked ? 'blocked' : 'in_progress';
-    const completedWork = ['Setup repo'];
-    const openTasks = ['Finish feature'];
-    const blockers = isBlocked ? ['Missing API keys'] : [];
-    const nextAction = isBlocked ? 'Wait for keys' : 'Code feature';
+    const state = isBlocked || failingCheck ? 'blocked' : 'in_progress';
+    const completedWork =
+      context.linkedPullRequests.length > 0
+        ? ['Opened linked PR']
+        : ['Setup repo'];
+    const openTasks = openPullRequest
+      ? [`Review or merge PR #${openPullRequest.number}`]
+      : ['Finish feature'];
+    const blockers = [
+      ...(isBlocked ? ['Missing API keys'] : []),
+      ...(failingCheck
+        ? [
+            `PR #${failingCheck.pullRequestNumber} has failing check: ${failingCheck.name}`,
+          ]
+        : []),
+    ];
+    const nextAction = failingCheck
+      ? `Fix failing checks on PR #${failingCheck.pullRequestNumber}`
+      : isBlocked
+        ? 'Wait for keys'
+        : openPullRequest
+          ? `Review PR #${openPullRequest.number}`
+          : 'Code feature';
 
     const commentLines = [
       `## Current Status for #${context.issue.number}`,
@@ -406,6 +435,16 @@ export class FakeTriageAiClient extends AiClient {
           content: context.issue.title,
           type: 'observed',
         },
+        ...context.linkedPullRequests.map((pullRequest) => ({
+          source: `pull_request:${pullRequest.number}`,
+          content: `${pullRequest.state} PR ${pullRequest.url}`,
+          type: 'observed' as const,
+        })),
+        ...context.checkRuns.map((run) => ({
+          source: `check_run:${run.name}`,
+          content: `PR #${run.pullRequestNumber} check ${run.name}: ${run.status}/${run.conclusion ?? 'none'}`,
+          type: 'observed' as const,
+        })),
       ],
     };
   }

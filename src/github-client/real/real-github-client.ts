@@ -5,6 +5,9 @@ import {
   IssueData,
   RepositoryData,
   IssueComment,
+  PullRequestContext,
+  CheckRunContext,
+  RelatedIssueContext,
 } from '../interfaces/github-client.interface';
 import { ConfigService } from '../../config/config.service';
 
@@ -46,12 +49,35 @@ interface GithubRestClient {
         per_page?: number;
         page?: number;
       }): Promise<{ data: GithubCommentResponse[] }>;
+      listEventsForTimeline(params: {
+        owner: string;
+        repo: string;
+        issue_number: number;
+        per_page?: number;
+        page?: number;
+      }): Promise<{ data: GithubTimelineEventResponse[] }>;
     };
     repos: {
       get(params: {
         owner: string;
         repo: string;
       }): Promise<{ data: GithubRepositoryResponse }>;
+    };
+    pulls: {
+      get(params: {
+        owner: string;
+        repo: string;
+        pull_number: number;
+      }): Promise<{ data: GithubPullRequestResponse }>;
+    };
+    checks: {
+      listForRef(params: {
+        owner: string;
+        repo: string;
+        ref: string;
+        per_page?: number;
+        page?: number;
+      }): Promise<{ data: { check_runs: GithubCheckRunResponse[] } }>;
     };
   };
 }
@@ -69,6 +95,9 @@ interface GithubIssueResponse {
   user?: { login?: string | null } | null;
   created_at: string;
   labels: Array<string | { name?: string | null }>;
+  state?: string;
+  html_url?: string;
+  pull_request?: unknown;
 }
 
 interface GithubRepositoryResponse {
@@ -83,6 +112,45 @@ interface GithubCommentResponse {
   user?: { login?: string | null } | null;
   created_at: string;
 }
+
+interface GithubTimelineEventResponse {
+  event?: string;
+  source?: {
+    issue?: {
+      number?: number;
+      pull_request?: unknown;
+    };
+  };
+}
+
+interface GithubPullRequestResponse {
+  number: number;
+  title: string;
+  state: string;
+  user?: { login?: string | null } | null;
+  html_url: string;
+  head: { ref: string; sha: string };
+  base: { ref: string };
+  draft?: boolean;
+  mergeable_state?: string | null;
+  changed_files?: number;
+  created_at: string;
+  updated_at: string;
+  merged_at?: string | null;
+}
+
+interface GithubCheckRunResponse {
+  name: string;
+  status: string;
+  conclusion?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  details_url?: string | null;
+  html_url?: string | null;
+}
+
+const RELATED_ISSUE_REFERENCE_PATTERN = /(?:^|[^\w/])#(\d+)\b/g;
+const MAX_RELATED_ISSUE_LOOKUPS = 10;
 
 @Injectable()
 export class RealGithubClient extends GithubClient {
@@ -245,4 +313,160 @@ export class RealGithubClient extends GithubClient {
       createdAt: comment.created_at,
     }));
   }
+
+  async getLinkedPullRequests(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<PullRequestContext[]> {
+    const octokit = await this.getInstallationOctokit(owner, repo);
+    const pullRequestNumbers = new Set<number>();
+    let page = 1;
+
+    while (true) {
+      const { data } = await octokit.rest.issues.listEventsForTimeline({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        per_page: 100,
+        page,
+      });
+
+      for (const event of data) {
+        const sourceIssue = event.source?.issue;
+        if (sourceIssue?.pull_request && sourceIssue.number) {
+          pullRequestNumbers.add(sourceIssue.number);
+        }
+      }
+
+      if (data.length < 100) break;
+      page++;
+    }
+
+    const pullRequests: PullRequestContext[] = [];
+    for (const pullNumber of pullRequestNumbers) {
+      const { data } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber,
+      });
+      pullRequests.push(mapPullRequest(data));
+    }
+
+    return pullRequests.sort((a, b) => a.number - b.number);
+  }
+
+  async getCheckRunsForRef(
+    owner: string,
+    repo: string,
+    ref: string,
+  ): Promise<CheckRunContext[]> {
+    const octokit = await this.getInstallationOctokit(owner, repo);
+    const checkRuns: GithubCheckRunResponse[] = [];
+    let page = 1;
+
+    while (true) {
+      const { data } = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref,
+        per_page: 100,
+        page,
+      });
+      checkRuns.push(...data.check_runs);
+      if (data.check_runs.length < 100) break;
+      page++;
+    }
+
+    return checkRuns.map((run) => ({
+      name: run.name,
+      status: run.status,
+      conclusion: run.conclusion ?? null,
+      startedAt: run.started_at ?? null,
+      completedAt: run.completed_at ?? null,
+      detailsUrl: run.details_url ?? run.html_url ?? null,
+    }));
+  }
+
+  async getRelatedIssues(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<RelatedIssueContext[]> {
+    const [issue, comments] = await Promise.all([
+      this.getIssue(owner, repo, issueNumber),
+      this.getIssueComments(owner, repo, issueNumber),
+    ]);
+
+    const mentionedIssueNumbers = extractIssueReferences([
+      issue.body,
+      ...comments.map((comment) => comment.body),
+    ]).filter((number) => number !== issueNumber);
+
+    const octokit = await this.getInstallationOctokit(owner, repo);
+    const relatedIssues: RelatedIssueContext[] = [];
+
+    for (const relatedIssueNumber of mentionedIssueNumbers.slice(
+      0,
+      MAX_RELATED_ISSUE_LOOKUPS,
+    )) {
+      try {
+        const { data } = await octokit.rest.issues.get({
+          owner,
+          repo,
+          issue_number: relatedIssueNumber,
+        });
+        if (data.pull_request) {
+          continue;
+        }
+        relatedIssues.push({
+          number: data.number,
+          title: data.title,
+          state: data.state === 'closed' ? 'closed' : 'open',
+          relationship: 'mentioned',
+          url: data.html_url ?? '',
+        });
+      } catch (error) {
+        this.logger.debug(
+          `Skipping related issue ${owner}/${repo}#${relatedIssueNumber}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    return relatedIssues;
+  }
+}
+
+function mapPullRequest(data: GithubPullRequestResponse): PullRequestContext {
+  return {
+    number: data.number,
+    title: data.title,
+    state: data.state === 'closed' ? 'closed' : 'open',
+    author: data.user?.login ?? '',
+    url: data.html_url,
+    headRefName: data.head.ref,
+    headSha: data.head.sha,
+    baseRefName: data.base.ref,
+    draft: data.draft ?? false,
+    mergeableState: data.mergeable_state ?? undefined,
+    changedFiles: data.changed_files,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    mergedAt: data.merged_at ?? null,
+  };
+}
+
+function extractIssueReferences(texts: string[]): number[] {
+  const references = new Set<number>();
+  for (const text of texts) {
+    for (const match of text.matchAll(RELATED_ISSUE_REFERENCE_PATTERN)) {
+      const parsed = Number(match[1]);
+      if (Number.isInteger(parsed) && parsed > 0) {
+        references.add(parsed);
+      }
+    }
+  }
+  return [...references];
 }
